@@ -1,0 +1,1523 @@
+EngTv - Master Development Specification
+
+Part 1 - Project Identity and Mandatory Rules
+
+IMPORTANT
+
+You are NOT creating a new IPTV application.
+
+You are continuing an existing project named EngTv.
+
+The uploaded project already contains:
+
+* Backend
+* Database
+* API
+* Viewer application
+* Admin authentication
+* Routing
+* Existing architecture
+
+You MUST preserve the current architecture.
+
+You MUST read the entire project before writing or modifying any code.
+
+You MUST NOT replace the architecture with your own.
+
+You MUST NOT restart the project.
+
+You MUST NOT create another IPTV Player.
+
+You MUST continue the existing project only.
+
+⸻
+
+ROLE
+
+You are the software engineer assigned to complete EngTv.
+
+You are NOT the product designer.
+
+You are NOT allowed to invent new features unless explicitly requested.
+
+You must execute the specification exactly.
+
+⸻
+
+PROJECT GOAL
+
+EngTv is a professional IPTV platform with centralized management.
+
+The viewer never manages playlists.
+
+The administrator manages everything.
+
+Every change performed by the administrator must automatically appear for every application user.
+
+⸻
+
+ABSOLUTE RULES
+
+These rules are mandatory.
+
+Violation of any rule is considered a project failure.
+
+Rule 1
+
+Do not redesign the project architecture.
+
+Continue from the current implementation.
+
+⸻
+
+Rule 2
+
+Do not convert the application into a traditional IPTV Player.
+
+The viewer must never import:
+
+* M3U
+* Xtream
+* Playlist
+* URL
+
+⸻
+
+Rule 3
+
+The viewer must never see IPTV settings.
+
+No playlist management.
+
+No source management.
+
+No technical configuration.
+
+⸻
+
+Rule 4
+
+Only one person is the Administrator.
+
+Only the administrator has access to management functions.
+
+⸻
+
+Rule 5
+
+The application must always work from the central server.
+
+All channels come from the server.
+
+Never from local playlists.
+
+⸻
+
+Rule 6
+
+Every administrator change must instantly become available to every user after synchronization.
+
+Examples:
+
+Adding a channel
+
+Deleting a channel
+
+Editing channel
+
+Changing logo
+
+Changing category
+
+Changing source
+
+Adding new source
+
+Disabling source
+
+Everything must be synchronized centrally.
+
+⸻
+
+Rule 7
+
+Users are viewers only.
+
+They never configure IPTV.
+
+⸻
+
+Rule 8
+
+The administrator controls:
+
+Channels
+
+Categories
+
+Sources
+
+Application settings
+
+Branding
+
+Synchronization
+
+Everything.
+
+⸻
+
+CENTRALIZED SOURCE MANAGEMENT
+
+The application must support multiple IPTV sources.
+
+Supported source types:
+
+• Xtream Codes
+
+• M3U
+
+Unlimited number of sources.
+
+Each source has:
+
+* Name
+* Type
+* Status
+* Last synchronization
+* Channel count
+* Category count
+* Last update
+* Synchronize button
+* Edit
+* Delete
+* Enable
+* Disable
+
+⸻
+
+SOURCE IMPORT
+
+When the administrator adds a source:
+
+The system must automatically:
+
+Download channels
+
+Download categories
+
+Download logos
+
+Store everything inside the database
+
+Make the imported channels available inside EngTv
+
+No manual importing.
+
+No manual channel creation.
+
+Everything must be automatic.
+
+⸻
+
+MULTIPLE SOURCES
+
+The system must support multiple active sources simultaneously.
+
+Example:
+
+Sports Source
+
+Movies Source
+
+Kids Source
+
+News Source
+
+Religious Source
+
+The application merges everything into one organized platform.
+
+The viewer never knows how many sources exist.
+
+The viewer only sees EngTv.
+
+⸻
+
+DUPLICATE CHANNEL MANAGEMENT
+
+When the same channel exists in multiple sources:
+
+Do NOT duplicate the channel in the viewer.
+
+The architecture should support one logical channel with one or more available stream sources if needed.
+
+This should allow future support for backup streams instead of duplicated channels.
+
+Do not implement shortcuts that make future expansion difficult.
+
+⸻
+
+EngTv - Master Development Specification
+
+Part 2 - Application Architecture and Functional Requirements
+
+VIEWER APPLICATION
+
+The viewer application must be designed as a premium television platform.
+
+It must NOT resemble a generic IPTV player.
+
+The user experience should feel similar to modern streaming applications.
+
+The application language must support Arabic properly (RTL) while remaining ready for multilingual expansion.
+
+⸻
+
+SPLASH SCREEN
+
+Professional splash screen.
+
+Requirements:
+
+* Application logo
+* Application name
+* Smooth animation
+* Fast loading
+* Automatic transition
+
+No buttons.
+
+No advertisements.
+
+No unnecessary delay.
+
+⸻
+
+HOME PAGE
+
+The home page must contain:
+
+• Featured channels
+
+• Categories
+
+• Continue Watching
+
+• Recently Watched
+
+• Favorites shortcut
+
+• Search shortcut
+
+• Settings (viewer settings only)
+
+The layout must be responsive and modern.
+
+⸻
+
+CATEGORIES
+
+Channels must be grouped automatically.
+
+Example categories:
+
+Sports
+
+News
+
+Movies
+
+Series
+
+Kids
+
+Religion
+
+Documentaries
+
+Arabic
+
+International
+
+Music
+
+Entertainment
+
+The administrator may create unlimited categories.
+
+Each category has:
+
+* Name
+* Icon
+* Display order
+* Visibility status
+
+⸻
+
+SEARCH
+
+Instant search.
+
+Search by:
+
+Channel name
+
+Category
+
+Keywords
+
+Search results should appear immediately.
+
+⸻
+
+FAVORITES
+
+Each user has personal favorites stored locally on the device.
+
+Administrator cannot modify user favorites.
+
+⸻
+
+CONTINUE WATCHING
+
+The application remembers:
+
+Last watched channel
+
+Playback position (if applicable)
+
+Recently watched list
+
+Stored locally.
+
+⸻
+
+VIDEO PLAYER
+
+Professional player.
+
+Requirements:
+
+Support HLS
+
+Support m3u8
+
+Fast startup
+
+Retry after network interruption
+
+Buffer indicator
+
+Playback error screen
+
+Automatic recovery when possible
+
+Fullscreen support
+
+Landscape mode
+
+Picture quality must not be degraded.
+
+⸻
+
+CHANNEL PAGE
+
+Each channel page displays:
+
+Logo
+
+Channel name
+
+Category
+
+Favorite button
+
+Related channels
+
+Player
+
+⸻
+
+VIEWER SETTINGS
+
+Viewer settings only.
+
+Allowed:
+
+Theme
+
+Language
+
+Playback preferences
+
+Nothing related to IPTV sources.
+
+⸻
+
+ADMIN PANEL
+
+Administrator panel is completely separated.
+
+Protected by authentication.
+
+Viewer must never access it.
+
+Modules:
+
+Dashboard
+
+Source Management
+
+Channel Management
+
+Category Management
+
+Application Settings
+
+Synchronization
+
+Backup
+
+Restore
+
+Logs
+
+⸻
+
+SOURCE MANAGEMENT
+
+This is one of the most important modules.
+
+Administrator can:
+
+Add Xtream source
+
+Add M3U source
+
+Edit source
+
+Delete source
+
+Enable source
+
+Disable source
+
+Synchronize manually
+
+View synchronization history
+
+View statistics
+
+Unlimited sources.
+
+⸻
+
+AUTOMATIC IMPORT
+
+When synchronization starts:
+
+Read all categories.
+
+Read all channels.
+
+Read all logos.
+
+Store inside database.
+
+Update existing channels.
+
+Insert new channels.
+
+Handle removed channels according to synchronization policy.
+
+No manual work required.
+
+⸻
+
+APPLICATION SETTINGS
+
+Administrator can modify:
+
+Application name
+
+Application logo
+
+Splash screen logo
+
+Primary color
+
+Secondary color
+
+Footer text
+
+Contact information (future ready)
+
+Application version display
+
+⸻
+
+APK
+
+The final deliverable must NOT be a simple WebView.
+
+The Android application must be a proper APK package.
+
+Requirements:
+
+Professional launcher icon
+
+Splash screen
+
+Native Android packaging
+
+Proper permissions
+
+Stable performance
+
+Ready for installation
+
+⸻
+
+PERFORMANCE
+
+The application must load quickly.
+
+Lazy loading where appropriate.
+
+Optimized API requests.
+
+Efficient database queries.
+
+No unnecessary repeated requests.
+
+⸻
+
+EngTv - Master Development Specification
+
+Part 3 - Execution Policy, Synchronization, Security and Acceptance Rules
+
+DATABASE
+
+The database is the single source of truth.
+
+The viewer application must never depend on locally stored IPTV playlists.
+
+Everything must come from the central backend.
+
+The database must store at minimum:
+
+• IPTV Sources
+
+• Categories
+
+• Channels
+
+• Application Settings
+
+• Synchronization History
+
+• Error Logs
+
+• Backup Information
+
+The database structure should remain scalable for future expansion.
+
+⸻
+
+IPTV SOURCES
+
+The administrator can create an unlimited number of sources.
+
+Supported source types:
+
+* Xtream Codes
+* M3U
+
+Each source stores:
+
+* Name
+* Type
+* Status
+* Credentials or URL
+* Last synchronization
+* Last successful synchronization
+* Last failed synchronization
+* Number of imported channels
+* Number of imported categories
+
+⸻
+
+SYNCHRONIZATION
+
+Synchronization is a core feature.
+
+The system must automatically:
+
+Read all channels.
+
+Read all categories.
+
+Read channel logos.
+
+Update existing records.
+
+Insert new records.
+
+Mark unavailable channels according to synchronization policy.
+
+Never require manual recreation of channels.
+
+⸻
+
+MULTIPLE SOURCES
+
+Multiple active IPTV sources must work together.
+
+The application should merge channels into one organized platform.
+
+The viewer must never know where channels originated.
+
+The administrator manages everything centrally.
+
+⸻
+
+CHANNEL MANAGEMENT
+
+The administrator can:
+
+Create
+
+Edit
+
+Delete
+
+Enable
+
+Disable
+
+Hide
+
+Reorder
+
+Move between categories
+
+Replace stream URL
+
+Replace logo
+
+Replace channel name
+
+All changes must appear for every viewer after synchronization.
+
+⸻
+
+CATEGORY MANAGEMENT
+
+Administrator can:
+
+Create
+
+Rename
+
+Delete
+
+Hide
+
+Show
+
+Reorder
+
+Assign icons
+
+Unlimited categories.
+
+⸻
+
+ERROR LOGGING
+
+The system must detect:
+
+Unavailable streams
+
+Import failures
+
+Synchronization failures
+
+API errors
+
+Every error should be recorded for administrator review.
+
+⸻
+
+BACKUP
+
+Administrator can:
+
+Export backup
+
+Restore backup
+
+Backup should include:
+
+Channels
+
+Categories
+
+Settings
+
+Sources
+
+Application configuration
+
+⸻
+
+SECURITY
+
+Administrator panel must always require authentication.
+
+Protected API endpoints must reject unauthorized requests.
+
+Viewer users must never access administrator functions.
+
+⸻
+
+PERFORMANCE
+
+Avoid unnecessary API requests.
+
+Optimize database queries.
+
+Support caching where appropriate.
+
+Keep synchronization efficient even with large channel lists.
+
+⸻
+
+QUALITY REQUIREMENTS
+
+Code must be:
+
+Readable
+
+Modular
+
+Maintainable
+
+Well organized
+
+No duplicated logic.
+
+No temporary shortcuts.
+
+No placeholder implementations.
+
+⸻
+
+COMPLETION POLICY
+
+The project must NOT be marked as complete until every requested feature has been implemented, tested and verified.
+
+Never claim completion while required functionality is still missing.
+
+If any feature is incomplete, continue implementation instead of ending the task.
+
+EngTv - Master Development Specification
+
+Part 4 - Development Contract, Execution Order and Final Acceptance
+
+DEVELOPMENT CONTRACT
+
+Before writing any code you MUST:
+
+1. Read the entire existing project.
+2. Understand the current architecture.
+3. Identify completed modules.
+4. Identify incomplete modules.
+5. Produce a brief implementation report before making major architectural changes.
+
+Do not assume anything.
+
+Always inspect the existing code first.
+
+⸻
+
+STRICT EXECUTION RULES
+
+You MUST NOT:
+
+Create another project.
+
+Replace the architecture.
+
+Restart implementation.
+
+Delete existing working modules.
+
+Replace technologies without explicit reason.
+
+Invent features outside this specification.
+
+Ignore existing functionality.
+
+Reduce requested functionality.
+
+Replace centralized management with local playlists.
+
+Create a viewer IPTV configuration page.
+
+Ask the viewer to import playlists.
+
+Require users to enter Xtream credentials.
+
+Require users to enter M3U URLs.
+
+The administrator is the ONLY person allowed to manage IPTV sources.
+
+⸻
+
+DEVELOPMENT ORDER
+
+Complete the project in this order.
+
+Phase 1
+
+Verify existing backend.
+
+Verify database.
+
+Verify API.
+
+Verify authentication.
+
+Fix existing issues.
+
+Do not redesign.
+
+⸻
+
+Phase 2
+
+Complete Source Management.
+
+Support unlimited Xtream sources.
+
+Support unlimited M3U sources.
+
+Synchronization.
+
+Enable / Disable.
+
+Statistics.
+
+History.
+
+⸻
+
+Phase 3
+
+Complete Channel Management.
+
+Create.
+
+Edit.
+
+Delete.
+
+Hide.
+
+Enable.
+
+Disable.
+
+Reorder.
+
+Search.
+
+Bulk actions.
+
+⸻
+
+Phase 4
+
+Complete Category Management.
+
+Unlimited categories.
+
+Icons.
+
+Sorting.
+
+Visibility.
+
+⸻
+
+Phase 5
+
+Complete Viewer Application.
+
+Home.
+
+Categories.
+
+Search.
+
+Favorites.
+
+Continue Watching.
+
+Professional Player.
+
+Loading improvements.
+
+Error handling.
+
+⸻
+
+Phase 6
+
+Complete Application Settings.
+
+Branding.
+
+Logo.
+
+Application name.
+
+Splash.
+
+Theme.
+
+Future-ready configuration.
+
+⸻
+
+Phase 7
+
+Android Packaging.
+
+Generate a proper Android APK.
+
+Not a simple WebView.
+
+The application should be installable and production-ready.
+
+⸻
+
+TESTING
+
+Every completed feature must be tested.
+
+Minimum testing includes:
+
+Administrator Login
+
+Adding Xtream source
+
+Adding M3U source
+
+Synchronization
+
+Channel import
+
+Category import
+
+Editing channels
+
+Deleting channels
+
+Reordering channels
+
+Favorites
+
+Continue Watching
+
+Search
+
+Player
+
+API protection
+
+Database updates
+
+Automatic synchronization behavior
+
+Android build
+
+Do not skip testing.
+
+⸻
+
+REPORTING
+
+After completing each phase provide:
+
+Completed work.
+
+Files modified.
+
+Remaining work.
+
+Known issues.
+
+Next phase.
+
+Do not simply state “Done”.
+
+Provide technical progress.
+
+⸻
+
+FINAL ACCEPTANCE REQUIREMENTS
+
+The project is NOT complete until all of the following are true:
+
+The administrator can manage everything from one secure panel.
+
+The viewer never manages IPTV sources.
+
+Multiple Xtream sources work.
+
+Multiple M3U sources work.
+
+Synchronization updates all viewers.
+
+Channels are organized automatically.
+
+Categories work correctly.
+
+Viewer experience is professional.
+
+Admin experience is professional.
+
+The Android APK builds successfully.
+
+No required feature from this specification is missing.
+
+⸻
+
+This specification is the project’s contract.
+
+If any implementation conflicts with this document, this document takes priority.
+
+Do not simplify.
+
+Do not redesign.
+
+Do not remove features.
+
+Continue working until EngTv fully complies with every requirement defined in Parts 1, 2, 3 and 4.
+
+End of Master Development Specification.
+
+
+Part 5 — Hidden Management System + Security + Full Source Control
+
+Create a completely hidden internal management system that is only accessible by the developer/app owner.
+
+The normal user must never see any indication that a management system exists.
+
+⸻
+
+Developer Mode
+
+Implement a hidden Developer Mode with secure access.
+
+Requirements:
+
+* The developer panel must not appear anywhere in the normal user interface.
+* No visible buttons, menus, or settings related to administration.
+* Access should only be possible through a private method such as:
+    * Secret gesture.
+    * Multiple taps on the app logo.
+    * Hidden developer authentication code.
+    * Secure developer login.
+
+⸻
+
+Developer Management Dashboard
+
+The hidden dashboard must provide complete control over application content.
+
+⸻
+
+IPTV Source Management
+
+Allow the developer to add, edit, remove, and manage IPTV sources.
+
+Supported sources:
+
+M3U / M3U8
+
+Ability to:
+
+* Add playlist URL.
+* Update playlist URL.
+* Test playlist availability.
+* Check channel loading status.
+* Display the number of successfully loaded channels.
+* Detect failed or unavailable channels.
+
+⸻
+
+Xtream Codes Support
+
+Support:
+
+* Server URL.
+* Username.
+* Password.
+
+Features:
+
+* Validate account connection.
+* Load categories automatically.
+* Load live channels.
+* Refresh data instantly.
+
+⸻
+
+Source Testing System
+
+Before saving any IPTV source:
+
+The application should:
+
+* Test connection speed.
+* Verify the source is working.
+* Count available channels.
+* Detect errors.
+* Show clear success/failure status.
+
+⸻
+
+Automatic Content Updates
+
+The application must support automatic playlist synchronization.
+
+Features:
+
+* Check sources automatically when the app starts.
+* Update channels in the background.
+* Keep the last successful channel database.
+* Avoid deleting existing channels when a server temporarily fails.
+
+Example:
+
+If the IPTV server is offline:
+
+* The app keeps the previous channel list.
+* Shows available cached channels.
+* Attempts to reconnect later automatically.
+
+⸻
+
+Backup and Data Persistence System
+
+Store user and application data safely.
+
+Save:
+
+* Favorite channels.
+* Recently watched channels.
+* Last played channel.
+* User settings.
+* Cached channel information.
+
+The data must remain available after:
+
+* App restart.
+* Device restart.
+* Application updates.
+
+⸻
+
+Application Security
+
+Implement strong protection mechanisms.
+
+Requirements:
+
+* Encrypt sensitive data.
+* Hide IPTV source URLs from normal users.
+* Never expose passwords in plain text.
+* Protect internal configuration files.
+* Reduce the possibility of extracting private source information.
+
+⸻
+
+Normal User Experience
+
+The normal user interface must only contain:
+
+* Live channels.
+* Categories.
+* Search.
+* Favorites.
+* Video player.
+* Basic settings.
+
+The user must NOT see:
+
+* IPTV URLs.
+* Server credentials.
+* Developer tools.
+* Technical management options.
+
+⸻
+
+Advanced Settings Section
+
+Create a professional settings page including:
+
+* Auto resume last watched channel.
+* Player selection:
+    * Internal player.
+    * External player support.
+* Video quality preferences.
+* Font size adjustment.
+* Dark mode.
+* Clear cache option.
+* Manual channel refresh.
+* Application information.
+
+⸻
+
+Performance Optimization
+
+The application must be optimized for speed and stability.
+
+Requirements:
+
+* Fast startup time.
+* Smart caching system.
+* Minimal internet usage.
+* Smooth channel loading.
+* Efficient memory management.
+* Stable performance on mid-range Android devices.
+
+Part 6 — Final Design, User Experience & Complete Application Identity
+
+Create a professional, modern IPTV application with a premium user experience.
+
+The final application should look and feel like a commercial streaming platform, with a clean interface, smooth animations, and simple navigation.
+
+⸻
+
+Complete Visual Identity
+
+Design the application with a unique and professional brand identity.
+
+Requirements:
+
+* Modern IPTV/Streaming style.
+* Premium appearance.
+* Clean and organized layout.
+* Professional splash screen.
+* High-quality app logo.
+* Consistent colors and typography.
+* Smooth transitions and animations.
+
+The design should give the feeling of a real streaming service, not a basic IPTV player.
+
+⸻
+
+Splash Screen
+
+Create a professional startup screen.
+
+Features:
+
+* Display EngTv logo.
+* Smooth animation.
+* Loading indicator.
+* Background matching the application identity.
+* Fast startup experience.
+
+The splash screen should only appear briefly while preparing:
+
+* Database.
+* Channel list.
+* User settings.
+* Application resources.
+
+⸻
+
+Home Screen Design
+
+Create an advanced home interface.
+
+Include:
+
+* Featured section.
+* Categories.
+* Recently watched channels.
+* Favorite channels.
+* Quick access buttons.
+* Search option.
+
+The layout must be simple enough for normal users while maintaining a premium appearance.
+
+⸻
+
+Channel Interface
+
+Create a professional channel browsing experience.
+
+Features:
+
+* Channel cards with logos.
+* Channel names.
+* Category labels.
+* Favorite button.
+* Fast loading.
+* Smooth scrolling.
+
+Support:
+
+* TV categories.
+* Sports.
+* Movies.
+* News.
+* Entertainment.
+* International channels.
+
+⸻
+
+Smart Search System
+
+Implement a powerful search engine.
+
+Requirements:
+
+* Instant search while typing.
+* Search by:
+    * Channel name.
+    * Category.
+    * Country.
+* Fast results.
+* Clear search option.
+
+⸻
+
+Favorites System
+
+Create a complete favorites experience.
+
+Features:
+
+* Add/remove channels easily.
+* Separate favorites section.
+* Save favorites permanently.
+* Fast access to preferred channels.
+
+⸻
+
+Last Channel Resume
+
+The application should remember the user’s previous activity.
+
+When reopening the app:
+
+* Automatically show the last watched channel.
+* Restore previous position/settings.
+* Provide a smooth return experience.
+
+⸻
+
+Advanced Video Player
+
+Implement a powerful IPTV player.
+
+Support:
+
+* Hardware acceleration.
+* Full screen mode.
+* Landscape mode.
+* Aspect ratio control.
+* Audio track selection.
+* Subtitle support when available.
+* Buffer optimization.
+
+The player should automatically handle:
+
+* Slow connections.
+* Temporary interruptions.
+* Stream reconnection.
+
+⸻
+
+Multiple Player Support
+
+Include support for multiple playback engines.
+
+Primary:
+
+* Internal optimized player.
+
+Optional:
+
+* External players.
+
+Allow users to choose their preferred playback method.
+
+⸻
+
+Error Handling System
+
+Create a professional error management system.
+
+Examples:
+
+If a channel fails:
+
+* Show a friendly message.
+* Automatically retry connection.
+* Suggest switching to another stream if available.
+
+Avoid showing technical errors to normal users.
+
+⸻
+
+Notifications System
+
+Add useful notifications:
+
+* Playlist updated successfully.
+* New channels available.
+* Application updates.
+* Connection status.
+
+Notifications must be minimal and not annoying.
+
+⸻
+
+Final Application Requirements
+
+The final EngTv application must be:
+
+* Fast.
+* Stable.
+* Professional.
+* Easy to use.
+* Secure.
+* Modern looking.
+* Ready for production release.
+
+The final APK should provide a premium IPTV experience similar to commercial streaming applications while keeping the interface simple and user-friendly.
+
+⸻
+
+Final Project Goal
+
+Build EngTv as a complete professional IPTV streaming platform with:
+
+* Modern UI.
+* Automatic channel management.
+* Hidden developer control panel.
+* Smart updates.
+* Secure source handling.
+* Fast playback.
+* Excellent user experience.
+
+The final result should feel like a fully developed commercial Android application, not a simple IPTV player.

@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: EngTv IPTV API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: categories
+    description: Channel categories
+  - name: channels
+    description: TV channels
+  - name: settings
+    description: Application settings
+  - name: admin
+    description: Admin operations (protected)
+  - name: sources
+    description: IPTV source management (admin)
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +34,971 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Public: Settings ─────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get application settings
+      responses:
+        "200":
+          description: Application settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+
+  # ─── Public: Categories ───────────────────────────────────────────────────
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all visible categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    get:
+      operationId: getCategory
+      tags: [categories]
+      summary: Get a category by ID with its channels
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Category with channels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryWithChannels"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Public: Channels ─────────────────────────────────────────────────────
+  /channels:
+    get:
+      operationId: listChannels
+      tags: [channels]
+      summary: List channels with optional filters
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Channel"
+
+  /channels/{id}:
+    get:
+      operationId: getChannel
+      tags: [channels]
+      summary: Get a channel by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Admin: Auth ──────────────────────────────────────────────────────────
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin login — returns JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Admin: Settings ──────────────────────────────────────────────────────
+  /admin/settings:
+    patch:
+      operationId: updateSettings
+      tags: [settings, admin]
+      summary: Update application settings (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppSettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+
+  # ─── Admin: Categories ────────────────────────────────────────────────────
+  /admin/categories:
+    get:
+      operationId: listAdminCategories
+      tags: [categories, admin]
+      summary: List all categories including hidden (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of all categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories, admin]
+      summary: Create a category (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /admin/categories/reorder:
+    patch:
+      operationId: reorderCategories
+      tags: [categories, admin]
+      summary: Reorder categories (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderInput"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [categories, admin]
+      summary: Update a category (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCategory
+      tags: [categories, admin]
+      summary: Delete a category (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Admin: Channels ──────────────────────────────────────────────────────
+  /admin/channels:
+    get:
+      operationId: listAdminChannels
+      tags: [channels, admin]
+      summary: List all channels including inactive (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: source_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of all channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Channel"
+    post:
+      operationId: createChannel
+      tags: [channels, admin]
+      summary: Create a channel (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelInput"
+      responses:
+        "201":
+          description: Created channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+
+  /admin/channels/reorder:
+    patch:
+      operationId: reorderChannels
+      tags: [channels, admin]
+      summary: Reorder channels (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderInput"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/channels/{id}:
+    patch:
+      operationId: updateChannel
+      tags: [channels, admin]
+      summary: Update a channel (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelUpdate"
+      responses:
+        "200":
+          description: Updated channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteChannel
+      tags: [channels, admin]
+      summary: Delete a channel (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Admin: Sources ───────────────────────────────────────────────────────
+  /admin/sources:
+    get:
+      operationId: listSources
+      tags: [sources, admin]
+      summary: List all IPTV sources (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+    post:
+      operationId: createSource
+      tags: [sources, admin]
+      summary: Create an IPTV source (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceInput"
+      responses:
+        "201":
+          description: Created source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+
+  /admin/sources/{id}:
+    get:
+      operationId: getSource
+      tags: [sources, admin]
+      summary: Get an IPTV source by ID (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSource
+      tags: [sources, admin]
+      summary: Update an IPTV source (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceUpdate"
+      responses:
+        "200":
+          description: Updated source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSource
+      tags: [sources, admin]
+      summary: Delete an IPTV source (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/sources/{id}/sync:
+    post:
+      operationId: syncSource
+      tags: [sources, admin]
+      summary: Trigger synchronization for a specific source (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/sources/{id}/sync-history:
+    get:
+      operationId: getSourceSyncHistory
+      tags: [sources, admin]
+      summary: Get sync history for a specific source (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncHistory"
+
+  /admin/sync:
+    post:
+      operationId: syncAllSources
+      tags: [sources, admin]
+      summary: Trigger synchronization for all active sources (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sync results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncAllResult"
+
+  /admin/sync-history:
+    get:
+      operationId: getSyncHistory
+      tags: [sources, admin]
+      summary: Get full sync history across all sources (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sync history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncHistory"
+
+  # ─── Admin: Dashboard Stats ───────────────────────────────────────────────
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get dashboard statistics (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    # ── App Settings ──────────────────────────────────────────────────────────
+    AppSettings:
+      type: object
+      required: [app_name]
+      properties:
+        app_name:
+          type: string
+        app_logo_url:
+          type: ["string", "null"]
+        primary_color:
+          type: ["string", "null"]
+        secondary_color:
+          type: ["string", "null"]
+        footer_text:
+          type: ["string", "null"]
+
+    AppSettingsUpdate:
+      type: object
+      properties:
+        app_name:
+          type: string
+          minLength: 1
+        app_logo_url:
+          type: ["string", "null"]
+        primary_color:
+          type: ["string", "null"]
+        secondary_color:
+          type: ["string", "null"]
+        footer_text:
+          type: ["string", "null"]
+
+    # ── Admin Auth ─────────────────────────────────────────────────────────────
+    AdminLoginInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+
+    AdminLoginResult:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    # ── Category ───────────────────────────────────────────────────────────────
+    Category:
+      type: object
+      required: [id, name, sort_order, is_visible]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: ["string", "null"]
+        sort_order:
+          type: integer
+        is_visible:
+          type: boolean
+        created_at:
+          type: string
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        icon:
+          type: ["string", "null"]
+        sort_order:
+          type: ["integer", "null"]
+        is_visible:
+          type: boolean
+
+    CategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        icon:
+          type: ["string", "null"]
+        sort_order:
+          type: ["integer", "null"]
+        is_visible:
+          type: boolean
+
+    CategoryWithChannels:
+      type: object
+      required: [id, name, sort_order, is_visible, channels]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: ["string", "null"]
+        sort_order:
+          type: integer
+        is_visible:
+          type: boolean
+        created_at:
+          type: string
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/Channel"
+
+    # ── Channel ────────────────────────────────────────────────────────────────
+    Channel:
+      type: object
+      required: [id, name, stream_url, is_active, sort_order]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        stream_url:
+          type: string
+        logo_url:
+          type: ["string", "null"]
+        category_id:
+          type: ["integer", "null"]
+        source_id:
+          type: ["integer", "null"]
+        external_id:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+
+    ChannelInput:
+      type: object
+      required: [name, stream_url]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        stream_url:
+          type: string
+        logo_url:
+          type: ["string", "null"]
+        category_id:
+          type: ["integer", "null"]
+        source_id:
+          type: ["integer", "null"]
+        external_id:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        sort_order:
+          type: ["integer", "null"]
+
+    ChannelUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        stream_url:
+          type: string
+        logo_url:
+          type: ["string", "null"]
+        category_id:
+          type: ["integer", "null"]
+        is_active:
+          type: boolean
+        sort_order:
+          type: ["integer", "null"]
+
+    # ── Reorder ────────────────────────────────────────────────────────────────
+    ReorderInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReorderItem"
+
+    ReorderItem:
+      type: object
+      required: [id, sort_order]
+      properties:
+        id:
+          type: integer
+        sort_order:
+          type: integer
+
+    # ── Source ─────────────────────────────────────────────────────────────────
+    Source:
+      type: object
+      required: [id, name, type, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [xtream, m3u]
+        status:
+          type: string
+          enum: [active, inactive]
+        url:
+          type: ["string", "null"]
+        server_url:
+          type: ["string", "null"]
+        username:
+          type: ["string", "null"]
+        password:
+          type: ["string", "null"]
+        last_sync_at:
+          type: ["string", "null"]
+        last_successful_sync_at:
+          type: ["string", "null"]
+        channel_count:
+          type: integer
+        category_count:
+          type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    SourceInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [xtream, m3u]
+        status:
+          type: string
+          enum: [active, inactive]
+        url:
+          type: ["string", "null"]
+        server_url:
+          type: ["string", "null"]
+        username:
+          type: ["string", "null"]
+        password:
+          type: ["string", "null"]
+
+    SourceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [xtream, m3u]
+        status:
+          type: string
+          enum: [active, inactive]
+        url:
+          type: ["string", "null"]
+        server_url:
+          type: ["string", "null"]
+        username:
+          type: ["string", "null"]
+        password:
+          type: ["string", "null"]
+
+    # ── Sync ───────────────────────────────────────────────────────────────────
+    SyncResult:
+      type: object
+      required: [success, channels_imported, categories_imported]
+      properties:
+        success:
+          type: boolean
+        channels_imported:
+          type: integer
+        categories_imported:
+          type: integer
+        error_message:
+          type: ["string", "null"]
+        duration_ms:
+          type: integer
+
+    SyncAllResult:
+      type: object
+      required: [success, total_channels, total_categories, sources_synced]
+      properties:
+        success:
+          type: boolean
+        total_channels:
+          type: integer
+        total_categories:
+          type: integer
+        sources_synced:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+
+    SyncHistory:
+      type: object
+      required: [id, source_id, status, started_at]
+      properties:
+        id:
+          type: integer
+        source_id:
+          type: integer
+        status:
+          type: string
+          enum: [running, success, failed]
+        channels_imported:
+          type: integer
+        categories_imported:
+          type: integer
+        error_message:
+          type: ["string", "null"]
+        started_at:
+          type: string
+        completed_at:
+          type: ["string", "null"]
+
+    # ── Admin Stats ────────────────────────────────────────────────────────────
+    AdminStats:
+      type: object
+      required: [total_channels, active_channels, total_categories, total_sources, active_sources]
+      properties:
+        total_channels:
+          type: integer
+        active_channels:
+          type: integer
+        total_categories:
+          type: integer
+        total_sources:
+          type: integer
+        active_sources:
+          type: integer
+        last_sync_at:
+          type: ["string", "null"]
