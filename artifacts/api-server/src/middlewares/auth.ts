@@ -1,7 +1,18 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const secret = process.env["ADMIN_JWT_SECRET"] || "engtv-dev-secret";
+function resolveSecret(): string {
+  const envSecret = process.env["ADMIN_JWT_SECRET"];
+  if (envSecret) return envSecret;
+  if (process.env["NODE_ENV"] === "production") {
+    throw new Error(
+      "ADMIN_JWT_SECRET environment variable is required but was not provided in production."
+    );
+  }
+  return "engtv-dev-secret";
+}
+
+const secret = resolveSecret();
 
 export function generateToken(): string {
   return jwt.sign({ admin: true }, secret, { expiresIn: "7d" });
