@@ -1,0 +1,29 @@
+## This file is a TEMPLATE — copy it to `local.properties` and fill in the values.
+## `local.properties` is listed in .gitignore and must NEVER be committed.
+
+## ── Android SDK path (required) ──────────────────────────────────────────────
+## On macOS:   /Users/<you>/Library/Android/sdk
+## On Linux:   /home/<you>/Android/Sdk
+## On Windows: C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+sdk.dir=/path/to/your/Android/sdk
+
+## ── EngTv API base URL (required) ────────────────────────────────────────────
+## Must end with /api/ (trailing slash required).
+##
+## For an Android Emulator pointing at your local dev server (host machine):
+##   API_BASE_URL=http://10.0.2.2:8080/api/
+##
+## For a deployed Replit backend (recommended for production APK):
+##   API_BASE_URL=https://your-repl-name.username.replit.app/api/
+API_BASE_URL=https://your-backend.replit.app/api/
+
+## ── Release signing (optional — only needed for release APK) ─────────────────
+## Generate a keystore once:
+##   keytool -genkey -v -keystore engtv-release.keystore \
+##           -alias engtv -keyalg RSA -keysize 2048 -validity 10000
+##
+## Then fill in the paths/passwords below:
+# STORE_FILE=../engtv-release.keystore
+# STORE_PASSWORD=your_keystore_password
+# KEY_ALIAS=engtv
+# KEY_PASSWORD=your_key_password

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- EngTv cinematic dark palette -->
+    <color name="background">#0A0A0F</color>
+    <color name="surface">#12121A</color>
+    <color name="surface_variant">#1A1A26</color>
+    <color name="primary">#3B82F6</color>
+    <color name="primary_variant">#2563EB</color>
+    <color name="secondary">#6366F1</color>
+    <color name="on_background">#FFFFFF</color>
+    <color name="on_surface">#E2E8F0</color>
+    <color name="on_surface_variant">#94A3B8</color>
+    <color name="error">#EF4444</color>
+    <color name="outline">#1E293B</color>
+</resources>

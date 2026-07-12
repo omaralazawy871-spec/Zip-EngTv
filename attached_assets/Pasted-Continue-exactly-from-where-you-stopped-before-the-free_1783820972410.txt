@@ -1,0 +1,60 @@
+Continue exactly from where you stopped before the free quota was reached.
+
+Do NOT restart the project.
+Do NOT recreate anything that has already been generated.
+Do NOT redesign the architecture.
+Do NOT rebuild the backend.
+Do NOT modify the existing web application.
+
+Resume the Android implementation from the last completed step and continue until all remaining Android work is finished.
+
+Follow exactly the previously agreed specification (Parts 1–6) without adding your own features or changing the design.
+
+Requirements:
+
+- Keep the existing Backend API unchanged.
+- Keep the existing Database unchanged.
+- Keep the existing Admin Panel unchanged.
+- Keep the IPTV Source Management unchanged.
+- Keep the M3U/Xtream synchronization system unchanged.
+
+Complete the Android application by finishing every remaining task:
+
+1. Finish the Gradle configuration.
+2. Finish the AndroidManifest and resources.
+3. Finish all Kotlin source files.
+4. Finish the MVVM architecture.
+5. Finish Retrofit networking.
+6. Finish Room database.
+7. Finish DataStore preferences.
+8. Finish Media3 ExoPlayer integration.
+9. Finish all UI screens.
+10. Finish Navigation.
+11. Finish ViewModels.
+12. Finish Repositories.
+13. Finish Dependency Injection.
+14. Finish the Arabic RTL UI.
+15. Finish the Cinematic Dark Theme.
+16. Finish Splash Screen.
+17. Finish Home.
+18. Finish Categories.
+19. Finish Channel List.
+20. Finish Search.
+21. Finish Favorites.
+22. Finish Settings.
+23. Finish Watch Player.
+24. Finish Resume Last Channel.
+25. Finish Local Cache.
+26. Finish API integration.
+27. Finish build configuration until the project is ready to generate an APK.
+
+Rules:
+
+- Never replace existing working code unless it is required.
+- Never remove existing functionality.
+- Never simplify the project.
+- Never skip any item.
+- If one task depends on another, complete them in the correct order.
+- Actually create and modify the files instead of only describing them.
+
+At the end, provide a checklist showing every completed task and clearly identify any remaining work that still needs to be implemented.

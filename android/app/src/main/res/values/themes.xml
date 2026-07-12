@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base app theme — always-dark, cinematic black background -->
+    <style name="Theme.EngTv" parent="android:Theme.Material.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!--
+      Splash-screen theme applied to MainActivity in AndroidManifest.xml.
+      Uses the AndroidX Core SplashScreen API (androidx.core:core-splashscreen).
+
+      The launcher shows this theme on the very first frame before Compose is ready:
+        • windowSplashScreenBackground  — the full-screen background colour
+        • windowSplashScreenAnimatedIcon — the icon drawn in the centre
+        • postSplashScreenTheme         — the theme Compose inherits after the splash
+    -->
+    <style name="Theme.EngTv.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimationDuration">600</item>
+        <item name="postSplashScreenTheme">@style/Theme.EngTv</item>
+    </style>
+
+</resources>

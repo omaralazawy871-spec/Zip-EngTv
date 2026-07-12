@@ -1,0 +1,25 @@
+# Android build artefacts
+*.iml
+.gradle/
+local.properties
+*.jks
+*.keystore
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+app/release/
+
+# Gradle wrapper JAR — binary, downloaded by setup-wrapper.sh
+gradle/wrapper/gradle-wrapper.jar
+
+# Generated code
+app/build/
+
+# OS files
+Thumbs.db
