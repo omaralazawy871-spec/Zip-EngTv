@@ -41,7 +41,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Imported from GitHub: the artifact registry (`listArtifacts()`) didn't carry over, so the three workflows were recreated manually with `configureWorkflow` using the exact `PORT`/`BASE_PATH` values from each `artifacts/*/.replit-artifact/artifact.toml`. Path-based routing (`/`, `/api`, `/__mockup`) still works correctly.
+- `DATABASE_URL` was already provisioned; schema was pushed with `pnpm --filter db run push`. The DB is empty — no channels/categories exist yet (add via admin panel or seed).
+- Admin login (`ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`) falls back to a dev default when unset, so it works locally without configuration. Set both before deploying to production — the server throws on startup in production if they're missing.
 
 ## Pointers
 
