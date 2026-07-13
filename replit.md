@@ -45,6 +45,17 @@ _Populate as you build — explicit user instructions worth remembering across s
 - `DATABASE_URL` was already provisioned; schema was pushed with `pnpm --filter db run push`. The DB is empty — no channels/categories exist yet (add via admin panel or seed).
 - Admin login (`ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`) falls back to a dev default when unset, so it works locally without configuration. Set both before deploying to production — the server throws on startup in production if they're missing.
 
+## Android app
+
+- Native Kotlin app in `android/` (Jetpack Compose, MVVM, Hilt, Room, Media3/ExoPlayer). Talks to the existing `artifacts/api-server` backend only — no admin endpoints.
+- Build tooling installed in this environment: JDK (GraalVM, via `java-graalvm22.3` module) + Gradle 8.14.2 (system dependency) + Android SDK at `/home/runner/android-sdk` (platform-tools, `platforms;android-35`, `build-tools;35.0.0`).
+- The project's own Gradle wrapper JAR (`android/gradle/wrapper/gradle-wrapper.jar`, downloaded via `setup-wrapper.sh`) has no `Main-Class` manifest entry and cannot run — use the system `gradle` binary instead of `./gradlew`.
+- Build commands (from `android/`, with `JAVA_HOME`/`PATH` pointed at the GraalVM JDK and `ANDROID_HOME=/home/runner/android-sdk`):
+  - Debug: `gradle assembleDebug --no-daemon` → `app/build/outputs/apk/debug/app-debug.apk`
+  - Release: `gradle assembleRelease --no-daemon` → `app/build/outputs/apk/release/app-release.apk`
+- `android/local.properties` (gitignored) holds `sdk.dir`, `API_BASE_URL` (currently the dev domain — point this at the real production URL once deployed and rebuild), and release signing (`STORE_FILE=../engtv-release.keystore`, pointing at `engtv-release.keystore` in the **workspace root**, not inside `android/`).
+- The release keystore (`engtv-release.keystore`, workspace root, gitignored) was generated for this build — back it up; losing it means future releases can't update the same app install.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
