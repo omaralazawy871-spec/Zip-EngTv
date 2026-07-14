@@ -6,6 +6,7 @@ export const syncHistoryTable = pgTable("sync_history", {
   status: text("status").notNull().default("running"), // 'running' | 'success' | 'failed'
   channels_imported: integer("channels_imported").notNull().default(0),
   categories_imported: integer("categories_imported").notNull().default(0),
+  channels_deactivated: integer("channels_deactivated").notNull().default(0),
   error_message: text("error_message"),
   started_at: timestamp("started_at").notNull().defaultNow(),
   completed_at: timestamp("completed_at"),

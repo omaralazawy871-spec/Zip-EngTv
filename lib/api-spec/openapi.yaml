@@ -319,6 +319,22 @@ paths:
           in: query
           schema:
             type: integer
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: is_healthy
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of all channels
@@ -347,6 +363,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Channel"
+    delete:
+      operationId: deleteAllChannels
+      tags: [channels, admin]
+      summary: Delete ALL channels (admin, requires confirm header)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: x-confirm-delete-all
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["yes"]
+      responses:
+        "200":
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeleteResult"
 
   /admin/channels/reorder:
     patch:
@@ -368,6 +404,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/channels/bulk-delete:
+    post:
+      operationId: bulkDeleteChannels
+      tags: [channels, admin]
+      summary: Delete multiple channels by ID (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkIdsInput"
+      responses:
+        "200":
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeleteResult"
+
+  /admin/channels/bulk-status:
+    post:
+      operationId: bulkUpdateChannelStatus
+      tags: [channels, admin]
+      summary: Enable or disable multiple channels by ID (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkStatusInput"
+      responses:
+        "200":
+          description: Update result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkUpdateResult"
+
+  /admin/channels/health-check:
+    post:
+      operationId: runHealthCheck
+      tags: [channels, admin]
+      summary: Check stream availability for channels (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthCheckInput"
+      responses:
+        "200":
+          description: Health check results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResult"
 
   /admin/channels/{id}:
     patch:
@@ -554,6 +653,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/sources/{id}/retry:
+    post:
+      operationId: retrySyncSource
+      tags: [sources, admin]
+      summary: Retry the last failed sync for a source (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "404":
+          description: Not found
+
   /admin/sources/{id}/sync-history:
     get:
       operationId: getSourceSyncHistory
@@ -608,6 +730,22 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SyncHistory"
+
+  # ─── Admin: Scheduler ─────────────────────────────────────────────────────
+  /admin/scheduler:
+    get:
+      operationId: getSchedulerStatus
+      tags: [admin]
+      summary: Get scheduler status and next scheduled syncs (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Scheduler status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchedulerStatus"
 
   # ─── Admin: Dashboard Stats ───────────────────────────────────────────────
   /admin/stats:
@@ -790,8 +928,18 @@ components:
           type: boolean
         sort_order:
           type: integer
+        language:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
         created_at:
           type: string
+        last_checked_at:
+          type: ["string", "null"]
+        is_healthy:
+          type: ["boolean", "null"]
+        health_error:
+          type: ["string", "null"]
 
     ChannelInput:
       type: object
@@ -832,6 +980,69 @@ components:
         sort_order:
           type: ["integer", "null"]
 
+    # ── Bulk Operations ────────────────────────────────────────────────────────
+    BulkIdsInput:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+
+    BulkStatusInput:
+      type: object
+      required: [ids, is_active]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+        is_active:
+          type: boolean
+
+    BulkDeleteResult:
+      type: object
+      required: [deleted_count]
+      properties:
+        deleted_count:
+          type: integer
+
+    BulkUpdateResult:
+      type: object
+      required: [updated_count]
+      properties:
+        updated_count:
+          type: integer
+
+    # ── Health Check ───────────────────────────────────────────────────────────
+    HealthCheckInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          description: "Specific channel IDs to check. If omitted, checks all active channels."
+        concurrency:
+          type: integer
+          description: "Max parallel checks (default 10, max 30)"
+
+    HealthCheckResult:
+      type: object
+      required: [checked, healthy, broken, skipped]
+      properties:
+        checked:
+          type: integer
+        healthy:
+          type: integer
+        broken:
+          type: integer
+        skipped:
+          type: integer
+
     # ── Reorder ────────────────────────────────────────────────────────────────
     ReorderInput:
       type: object
@@ -854,7 +1065,7 @@ components:
     # ── Source ─────────────────────────────────────────────────────────────────
     Source:
       type: object
-      required: [id, name, type, status]
+      required: [id, name, type, status, filter_language, sync_interval_hours]
       properties:
         id:
           type: integer
@@ -886,6 +1097,17 @@ components:
           type: string
         updated_at:
           type: string
+        filter_language:
+          type: string
+          enum: [all, arabic, english]
+        filter_countries:
+          type: ["string", "null"]
+        filter_categories:
+          type: ["string", "null"]
+        sync_interval_hours:
+          type: integer
+        next_sync_at:
+          type: ["string", "null"]
 
     SourceInput:
       type: object
@@ -908,6 +1130,15 @@ components:
           type: ["string", "null"]
         password:
           type: ["string", "null"]
+        filter_language:
+          type: string
+          enum: [all, arabic, english]
+        filter_countries:
+          type: ["string", "null"]
+        filter_categories:
+          type: ["string", "null"]
+        sync_interval_hours:
+          type: integer
 
     SourceUpdate:
       type: object
@@ -929,6 +1160,15 @@ components:
           type: ["string", "null"]
         password:
           type: ["string", "null"]
+        filter_language:
+          type: string
+          enum: [all, arabic, english]
+        filter_countries:
+          type: ["string", "null"]
+        filter_categories:
+          type: ["string", "null"]
+        sync_interval_hours:
+          type: integer
 
     # ── Sync ───────────────────────────────────────────────────────────────────
     SyncResult:
@@ -940,6 +1180,8 @@ components:
         channels_imported:
           type: integer
         categories_imported:
+          type: integer
+        channels_deactivated:
           type: integer
         error_message:
           type: ["string", "null"]
@@ -978,11 +1220,40 @@ components:
           type: integer
         categories_imported:
           type: integer
+        channels_deactivated:
+          type: integer
         error_message:
           type: ["string", "null"]
         started_at:
           type: string
         completed_at:
+          type: ["string", "null"]
+
+    # ── Scheduler ──────────────────────────────────────────────────────────────
+    SchedulerStatus:
+      type: object
+      required: [enabled, scheduled_sources]
+      properties:
+        enabled:
+          type: boolean
+        scheduled_sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledSource"
+
+    ScheduledSource:
+      type: object
+      required: [source_id, source_name, sync_interval_hours, next_sync_at]
+      properties:
+        source_id:
+          type: integer
+        source_name:
+          type: string
+        sync_interval_hours:
+          type: integer
+        next_sync_at:
+          type: ["string", "null"]
+        last_sync_at:
           type: ["string", "null"]
 
     # ── Admin Stats ────────────────────────────────────────────────────────────
@@ -993,6 +1264,10 @@ components:
         total_channels:
           type: integer
         active_channels:
+          type: integer
+        healthy_channels:
+          type: integer
+        broken_channels:
           type: integer
         total_categories:
           type: integer

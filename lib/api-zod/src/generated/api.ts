@@ -66,7 +66,12 @@ export const GetCategoryResponse = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
 }))
 })
 
@@ -90,7 +95,12 @@ export const ListChannelsResponseItem = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
 })
 export const ListChannelsResponse = zod.array(ListChannelsResponseItem)
 
@@ -112,7 +122,12 @@ export const GetChannelResponse = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
 })
 
 
@@ -249,7 +264,11 @@ export const DeleteCategoryResponse = zod.void()
 export const ListAdminChannelsQueryParams = zod.object({
   "category_id": zod.coerce.number().optional(),
   "q": zod.coerce.string().optional(),
-  "source_id": zod.coerce.number().optional()
+  "source_id": zod.coerce.number().optional(),
+  "language": zod.coerce.string().optional(),
+  "country": zod.coerce.string().optional(),
+  "is_active": zod.coerce.boolean().optional(),
+  "is_healthy": zod.coerce.boolean().optional()
 })
 
 export const ListAdminChannelsResponseItem = zod.object({
@@ -262,7 +281,12 @@ export const ListAdminChannelsResponseItem = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
 })
 export const ListAdminChannelsResponse = zod.array(ListAdminChannelsResponseItem)
 
@@ -294,7 +318,24 @@ export const CreateChannelResponse = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete ALL channels (admin, requires confirm header)
+ */
+export const DeleteAllChannelsHeader = zod.object({
+  "x-confirm-delete-all": zod.enum(['yes'])
+})
+
+export const DeleteAllChannelsResponse = zod.object({
+  "deleted_count": zod.number()
 })
 
 
@@ -310,6 +351,53 @@ export const ReorderChannelsBody = zod.object({
 
 export const ReorderChannelsResponse = zod.object({
   "success": zod.boolean()
+})
+
+
+/**
+ * @summary Delete multiple channels by ID (admin)
+ */
+
+
+
+export const BulkDeleteChannelsBody = zod.object({
+  "ids": zod.array(zod.number()).min(1)
+})
+
+export const BulkDeleteChannelsResponse = zod.object({
+  "deleted_count": zod.number()
+})
+
+
+/**
+ * @summary Enable or disable multiple channels by ID (admin)
+ */
+
+
+
+export const BulkUpdateChannelStatusBody = zod.object({
+  "ids": zod.array(zod.number()).min(1),
+  "is_active": zod.boolean()
+})
+
+export const BulkUpdateChannelStatusResponse = zod.object({
+  "updated_count": zod.number()
+})
+
+
+/**
+ * @summary Check stream availability for channels (admin)
+ */
+export const RunHealthCheckBody = zod.object({
+  "ids": zod.array(zod.number()).optional().describe('Specific channel IDs to check. If omitted, checks all active channels.'),
+  "concurrency": zod.number().optional().describe('Max parallel checks (default 10, max 30)')
+})
+
+export const RunHealthCheckResponse = zod.object({
+  "checked": zod.number(),
+  "healthy": zod.number(),
+  "broken": zod.number(),
+  "skipped": zod.number()
 })
 
 
@@ -342,7 +430,12 @@ export const UpdateChannelResponse = zod.object({
   "external_id": zod.string().nullish(),
   "is_active": zod.boolean(),
   "sort_order": zod.number(),
-  "created_at": zod.string().optional()
+  "language": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "created_at": zod.string().optional(),
+  "last_checked_at": zod.string().nullish(),
+  "is_healthy": zod.boolean().nullish(),
+  "health_error": zod.string().nullish()
 })
 
 
@@ -373,7 +466,12 @@ export const ListSourcesResponseItem = zod.object({
   "channel_count": zod.number().optional(),
   "category_count": zod.number().optional(),
   "created_at": zod.string().optional(),
-  "updated_at": zod.string().optional()
+  "updated_at": zod.string().optional(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number(),
+  "next_sync_at": zod.string().nullish()
 })
 export const ListSourcesResponse = zod.array(ListSourcesResponseItem)
 
@@ -391,7 +489,11 @@ export const CreateSourceBody = zod.object({
   "url": zod.string().nullish(),
   "server_url": zod.string().nullish(),
   "username": zod.string().nullish(),
-  "password": zod.string().nullish()
+  "password": zod.string().nullish(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']).optional(),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number().optional()
 })
 
 export const CreateSourceResponse = zod.object({
@@ -408,7 +510,12 @@ export const CreateSourceResponse = zod.object({
   "channel_count": zod.number().optional(),
   "category_count": zod.number().optional(),
   "created_at": zod.string().optional(),
-  "updated_at": zod.string().optional()
+  "updated_at": zod.string().optional(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number(),
+  "next_sync_at": zod.string().nullish()
 })
 
 
@@ -433,7 +540,12 @@ export const GetSourceResponse = zod.object({
   "channel_count": zod.number().optional(),
   "category_count": zod.number().optional(),
   "created_at": zod.string().optional(),
-  "updated_at": zod.string().optional()
+  "updated_at": zod.string().optional(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number(),
+  "next_sync_at": zod.string().nullish()
 })
 
 
@@ -454,7 +566,11 @@ export const UpdateSourceBody = zod.object({
   "url": zod.string().nullish(),
   "server_url": zod.string().nullish(),
   "username": zod.string().nullish(),
-  "password": zod.string().nullish()
+  "password": zod.string().nullish(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']).optional(),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number().optional()
 })
 
 export const UpdateSourceResponse = zod.object({
@@ -471,7 +587,12 @@ export const UpdateSourceResponse = zod.object({
   "channel_count": zod.number().optional(),
   "category_count": zod.number().optional(),
   "created_at": zod.string().optional(),
-  "updated_at": zod.string().optional()
+  "updated_at": zod.string().optional(),
+  "filter_language": zod.enum(['all', 'arabic', 'english']),
+  "filter_countries": zod.string().nullish(),
+  "filter_categories": zod.string().nullish(),
+  "sync_interval_hours": zod.number(),
+  "next_sync_at": zod.string().nullish()
 })
 
 
@@ -496,6 +617,24 @@ export const SyncSourceResponse = zod.object({
   "success": zod.boolean(),
   "channels_imported": zod.number(),
   "categories_imported": zod.number(),
+  "channels_deactivated": zod.number().optional(),
+  "error_message": zod.string().nullish(),
+  "duration_ms": zod.number().optional()
+})
+
+
+/**
+ * @summary Retry the last failed sync for a source (admin)
+ */
+export const RetrySyncSourceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RetrySyncSourceResponse = zod.object({
+  "success": zod.boolean(),
+  "channels_imported": zod.number(),
+  "categories_imported": zod.number(),
+  "channels_deactivated": zod.number().optional(),
   "error_message": zod.string().nullish(),
   "duration_ms": zod.number().optional()
 })
@@ -514,6 +653,7 @@ export const GetSourceSyncHistoryResponseItem = zod.object({
   "status": zod.enum(['running', 'success', 'failed']),
   "channels_imported": zod.number().optional(),
   "categories_imported": zod.number().optional(),
+  "channels_deactivated": zod.number().optional(),
   "error_message": zod.string().nullish(),
   "started_at": zod.string(),
   "completed_at": zod.string().nullish()
@@ -542,6 +682,7 @@ export const GetSyncHistoryResponseItem = zod.object({
   "status": zod.enum(['running', 'success', 'failed']),
   "channels_imported": zod.number().optional(),
   "categories_imported": zod.number().optional(),
+  "channels_deactivated": zod.number().optional(),
   "error_message": zod.string().nullish(),
   "started_at": zod.string(),
   "completed_at": zod.string().nullish()
@@ -550,11 +691,28 @@ export const GetSyncHistoryResponse = zod.array(GetSyncHistoryResponseItem)
 
 
 /**
+ * @summary Get scheduler status and next scheduled syncs (admin)
+ */
+export const GetSchedulerStatusResponse = zod.object({
+  "enabled": zod.boolean(),
+  "scheduled_sources": zod.array(zod.object({
+  "source_id": zod.number(),
+  "source_name": zod.string(),
+  "sync_interval_hours": zod.number(),
+  "next_sync_at": zod.string().nullable(),
+  "last_sync_at": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Get dashboard statistics (admin)
  */
 export const GetAdminStatsResponse = zod.object({
   "total_channels": zod.number(),
   "active_channels": zod.number(),
+  "healthy_channels": zod.number().optional(),
+  "broken_channels": zod.number().optional(),
   "total_categories": zod.number(),
   "total_sources": zod.number(),
   "active_sources": zod.number(),

@@ -1,14 +1,57 @@
-import { eq } from "drizzle-orm";
+import { eq, and, inArray, notInArray } from "drizzle-orm";
 import { db, sourcesTable, categoriesTable, channelsTable, syncHistoryTable } from "@workspace/db";
 import type { Source } from "@workspace/db";
 
-interface SyncResult {
-  success: boolean;
-  channels_imported: number;
-  categories_imported: number;
-  error_message: string | null;
-  duration_ms: number;
+// ─── Language detection ────────────────────────────────────────────────────
+
+const ARABIC_PATTERNS = [
+  /\b(ar|ara|arabic)\b/i,
+  /[\u0600-\u06FF]/, // Arabic unicode range
+  /\b(KSA|UAE|EGY|SAU|ARA|LBN|JOR|IRQ|SYR|YEM|OMN|KWT|BHR|QAT|MAR|DZA|TUN|LIB|MRT|SDN|SOM|DJI|COM)\b/i,
+];
+const ENGLISH_PATTERNS = [/\b(en|eng|english)\b/i, /\b(USA|UK|GBR|AUS|CAN|NZL|IRL)\b/i];
+
+const ARABIC_KEYWORDS = ["العربية", "عربي", "عرب", "قناة", "تلفزيون", "الجزيرة", "mbc", "bein"];
+const ENGLISH_KEYWORDS = ["english", "english news", "en ", " en,"];
+
+function detectLanguage(name: string, group?: string): "ar" | "en" | "unknown" {
+  const combined = `${name} ${group || ""}`.toLowerCase();
+  if (ARABIC_PATTERNS.some((p) => p.test(combined))) return "ar";
+  if (ARABIC_KEYWORDS.some((k) => combined.includes(k.toLowerCase()))) return "ar";
+  if (ENGLISH_PATTERNS.some((p) => p.test(combined))) return "en";
+  if (ENGLISH_KEYWORDS.some((k) => combined.includes(k.toLowerCase()))) return "en";
+  return "unknown";
 }
+
+function matchesLanguageFilter(lang: string, filter: string): boolean {
+  if (filter === "all") return true;
+  if (filter === "arabic") return lang === "ar";
+  if (filter === "english") return lang === "en";
+  return true;
+}
+
+function parseCommaSeparated(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function matchesCountryFilter(country: string | undefined, filterCountries: string[]): boolean {
+  if (filterCountries.length === 0) return true;
+  if (!country) return false;
+  return filterCountries.includes(country.toLowerCase());
+}
+
+function matchesCategoryFilter(group: string | undefined, filterCategories: string[]): boolean {
+  if (filterCategories.length === 0) return true;
+  if (!group) return false;
+  const lowerGroup = group.toLowerCase();
+  return filterCategories.some((pattern) => lowerGroup.includes(pattern));
+}
+
+// ─── M3U ─────────────────────────────────────────────────────────────────
 
 interface M3UEntry {
   name: string;
@@ -16,6 +59,8 @@ interface M3UEntry {
   group?: string;
   url: string;
   tvgId?: string;
+  tvgCountry?: string;
+  tvgLanguage?: string;
 }
 
 function parseM3U(content: string): M3UEntry[] {
@@ -33,6 +78,8 @@ function parseM3U(content: string): M3UEntry[] {
     const logoMatch = line.match(/tvg-logo="([^"]*)"/);
     const groupMatch = line.match(/group-title="([^"]*)"/);
     const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
+    const tvgCountryMatch = line.match(/tvg-country="([^"]*)"/);
+    const tvgLanguageMatch = line.match(/tvg-language="([^"]*)"/);
 
     const name = nameMatch ? nameMatch[1].trim() : "Unknown";
     if (!name || name.toLowerCase() === "unknown") continue;
@@ -43,6 +90,8 @@ function parseM3U(content: string): M3UEntry[] {
       group: groupMatch ? groupMatch[1] : undefined,
       url: nextLine,
       tvgId: tvgIdMatch ? tvgIdMatch[1] : undefined,
+      tvgCountry: tvgCountryMatch ? tvgCountryMatch[1] : undefined,
+      tvgLanguage: tvgLanguageMatch ? tvgLanguageMatch[1] : undefined,
     });
   }
 
@@ -62,6 +111,8 @@ async function fetchM3U(url: string): Promise<M3UEntry[]> {
   const content = await response.text();
   return parseM3U(content);
 }
+
+// ─── Xtream ────────────────────────────────────────────────────────────────
 
 interface XtreamCategory {
   category_id: string;
@@ -85,12 +136,14 @@ async function fetchXtream(
   const base = serverUrl.replace(/\/$/, "");
 
   const [catRes, streamRes] = await Promise.all([
-    fetch(`${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`, {
-      signal: AbortSignal.timeout(30000),
-    }),
-    fetch(`${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`, {
-      signal: AbortSignal.timeout(30000),
-    }),
+    fetch(
+      `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`,
+      { signal: AbortSignal.timeout(30000) }
+    ),
+    fetch(
+      `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`,
+      { signal: AbortSignal.timeout(30000) }
+    ),
   ]);
 
   if (!catRes.ok || !streamRes.ok) {
@@ -113,23 +166,65 @@ async function fetchXtream(
   return { entries, categories };
 }
 
-async function getOrCreateCategory(name: string, nextSortOrder: number): Promise<number> {
-  const existing = await db
-    .select()
-    .from(categoriesTable)
-    .where(eq(categoriesTable.name, name));
+// ─── Category helpers ──────────────────────────────────────────────────────
 
+async function getOrCreateCategory(name: string, nextSortOrder: number): Promise<number> {
+  const existing = await db.select().from(categoriesTable).where(eq(categoriesTable.name, name));
   if (existing.length > 0) return existing[0].id;
 
   const [created] = await db
     .insert(categoriesTable)
     .values({ name, sort_order: nextSortOrder, is_visible: true })
     .returning();
-
   return created.id;
 }
 
-export async function syncSource(source: Source): Promise<SyncResult> {
+// ─── Dead channel detection ────────────────────────────────────────────────
+
+async function deactivateMissingChannels(
+  sourceId: number,
+  seenExternalIds: Set<string>,
+  seenNames: Set<string>
+): Promise<number> {
+  // Find channels from this source that were NOT seen in this sync
+  const existingChannels = await db
+    .select()
+    .from(channelsTable)
+    .where(and(eq(channelsTable.source_id, sourceId), eq(channelsTable.is_active, true)));
+
+  const toDeactivate = existingChannels.filter((ch) => {
+    if (ch.external_id && seenExternalIds.has(ch.external_id)) return false;
+    if (!ch.external_id && seenNames.has(ch.name)) return false;
+    return true;
+  });
+
+  if (toDeactivate.length > 0) {
+    await db
+      .update(channelsTable)
+      .set({ is_active: false, is_healthy: false, health_error: "لم يعد متاحاً في المصدر" })
+      .where(
+        inArray(
+          channelsTable.id,
+          toDeactivate.map((c) => c.id)
+        )
+      );
+  }
+
+  return toDeactivate.length;
+}
+
+// ─── Main sync ─────────────────────────────────────────────────────────────
+
+interface SyncResult {
+  success: boolean;
+  channels_imported: number;
+  categories_imported: number;
+  channels_deactivated: number;
+  error_message: string | null;
+  duration_ms: number;
+}
+
+export async function syncSource(source: Source, retrying = false): Promise<SyncResult> {
   const startTime = Date.now();
 
   // Create sync history record
@@ -154,24 +249,59 @@ export async function syncSource(source: Source): Promise<SyncResult> {
       xtreamCategories = result.categories;
     }
 
-    // Track category IDs created/found this sync
-    const categoryCache = new Map<string, number>();
-    let categoriesImported = 0;
+    // ── Apply per-source import filters ────────────────────────────────────
+    const filterLang = source.filter_language ?? "all";
+    const filterCountries = parseCommaSeparated(source.filter_countries);
+    const filterCategories = parseCommaSeparated(source.filter_categories);
 
-    // Upsert categories
+    entries = entries.filter((entry) => {
+      // Determine language: prefer tvg-language tag, fallback to detection
+      let lang: "ar" | "en" | "unknown" = "unknown";
+      if (entry.tvgLanguage) {
+        const tl = entry.tvgLanguage.toLowerCase();
+        if (tl.includes("ara") || tl === "ar") lang = "ar";
+        else if (tl.includes("eng") || tl === "en") lang = "en";
+      } else {
+        lang = detectLanguage(entry.name, entry.group);
+      }
+
+      if (!matchesLanguageFilter(lang, filterLang)) return false;
+
+      const country = entry.tvgCountry?.toUpperCase();
+      if (!matchesCountryFilter(country?.toLowerCase(), filterCountries)) return false;
+
+      if (!matchesCategoryFilter(entry.group, filterCategories)) return false;
+
+      return true;
+    });
+
+    // ── Upsert categories ──────────────────────────────────────────────────
+    const categoryCache = new Map<string, number>();
+    let categoriesCreated = 0;
+
     const uniqueGroups = [...new Set(entries.map((e) => e.group).filter(Boolean))] as string[];
     let nextCategorySortOrder = (await db.select().from(categoriesTable)).length;
+
     for (const groupName of uniqueGroups) {
+      const existingBefore = await db
+        .select()
+        .from(categoriesTable)
+        .where(eq(categoriesTable.name, groupName));
+      const wasNew = existingBefore.length === 0;
+
       const catId = await getOrCreateCategory(groupName, nextCategorySortOrder);
       categoryCache.set(groupName, catId);
-      categoriesImported++;
-      nextCategorySortOrder++;
+
+      if (wasNew) {
+        categoriesCreated++;
+        nextCategorySortOrder++;
+      }
     }
 
-    // Upsert channels - match by external_id + source_id, or name + source_id
-    // Fetch existing channels for this source ONCE up front (not per-entry) to
-    // avoid O(n) full-table scans per channel, which times out large playlists.
+    // ── Upsert channels ────────────────────────────────────────────────────
     let channelsImported = 0;
+    const seenExternalIds = new Set<string>();
+    const seenNames = new Set<string>();
 
     const existingForSource = await db
       .select()
@@ -187,14 +317,30 @@ export async function syncSource(source: Source): Promise<SyncResult> {
     let nextSortOrder = totalChannelsCount;
 
     for (const entry of entries) {
-      const categoryId = entry.group ? categoryCache.get(entry.group) ?? null : null;
+      const categoryId = entry.group ? (categoryCache.get(entry.group) ?? null) : null;
       const externalId = entry.tvgId || null;
+      const country = entry.tvgCountry?.toUpperCase() || null;
+
+      // Determine language for storage
+      let storedLang: "ar" | "en" | "unknown" = "unknown";
+      if (entry.tvgLanguage) {
+        const tl = entry.tvgLanguage.toLowerCase();
+        if (tl.includes("ara") || tl === "ar") storedLang = "ar";
+        else if (tl.includes("eng") || tl === "en") storedLang = "en";
+      } else {
+        storedLang = detectLanguage(entry.name, entry.group);
+      }
+
+      // Track seen for dead-channel detection
+      if (externalId) seenExternalIds.add(externalId);
+      seenNames.add(entry.name);
 
       const existingChannel =
-        (externalId ? byExternalId.get(externalId) : undefined) ?? byName.get(entry.name) ?? null;
+        (externalId ? byExternalId.get(externalId) : undefined) ??
+        byName.get(entry.name) ??
+        null;
 
       if (existingChannel) {
-        // Update existing
         await db
           .update(channelsTable)
           .set({
@@ -203,10 +349,11 @@ export async function syncSource(source: Source): Promise<SyncResult> {
             logo_url: entry.logo || existingChannel.logo_url,
             category_id: categoryId,
             is_active: true,
+            language: storedLang,
+            country,
           })
           .where(eq(channelsTable.id, existingChannel.id));
       } else {
-        // Insert new
         const [inserted] = await db
           .insert(channelsTable)
           .values({
@@ -218,11 +365,11 @@ export async function syncSource(source: Source): Promise<SyncResult> {
             external_id: externalId,
             is_active: true,
             sort_order: nextSortOrder++,
+            language: storedLang,
+            country,
           })
           .returning();
 
-        // Keep local caches in sync so later duplicate entries in the same
-        // playlist match against this newly-inserted row instead of re-inserting.
         if (externalId) byExternalId.set(externalId, inserted);
         byName.set(entry.name, inserted);
       }
@@ -230,20 +377,34 @@ export async function syncSource(source: Source): Promise<SyncResult> {
       channelsImported++;
     }
 
+    // ── Deactivate channels no longer in source ────────────────────────────
+    const channelsDeactivated = await deactivateMissingChannels(
+      source.id,
+      seenExternalIds,
+      seenNames
+    );
+
     const duration = Date.now() - startTime;
 
-    // Update sync history
+    // Update sync history with deactivation count
     await db
       .update(syncHistoryTable)
       .set({
         status: "success",
         channels_imported: channelsImported,
-        categories_imported: categoriesImported,
+        categories_imported: categoriesCreated,
+        channels_deactivated: channelsDeactivated,
         completed_at: new Date(),
       })
       .where(eq(syncHistoryTable.id, historyRecord.id));
 
-    // Update source stats
+    // Compute next_sync_at for auto-scheduler
+    const intervalHours = source.sync_interval_hours ?? 0;
+    const nextSyncAt =
+      intervalHours > 0
+        ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
+        : null;
+
     await db
       .update(sourcesTable)
       .set({
@@ -252,13 +413,15 @@ export async function syncSource(source: Source): Promise<SyncResult> {
         channel_count: channelsImported,
         category_count: xtreamCategories.length || uniqueGroups.length,
         updated_at: new Date(),
+        ...(nextSyncAt !== undefined ? { next_sync_at: nextSyncAt } : {}),
       })
       .where(eq(sourcesTable.id, source.id));
 
     return {
       success: true,
       channels_imported: channelsImported,
-      categories_imported: categoriesImported,
+      categories_imported: categoriesCreated,
+      channels_deactivated: channelsDeactivated,
       error_message: null,
       duration_ms: duration,
     };
@@ -280,10 +443,17 @@ export async function syncSource(source: Source): Promise<SyncResult> {
       .set({ last_sync_at: new Date(), updated_at: new Date() })
       .where(eq(sourcesTable.id, source.id));
 
+    // Auto-retry once for network errors
+    if (!retrying && err instanceof Error && err.message.includes("HTTP")) {
+      await new Promise((r) => setTimeout(r, 5000));
+      return syncSource(source, true);
+    }
+
     return {
       success: false,
       channels_imported: 0,
       categories_imported: 0,
+      channels_deactivated: 0,
       error_message: errorMessage,
       duration_ms: duration,
     };

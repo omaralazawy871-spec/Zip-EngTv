@@ -1,0 +1,222 @@
+You are continuing the existing EngTv project from the current repository state.
+
+Important:
+- Do not rebuild the project from scratch.
+- Do not replace existing implementations.
+- Do not repeat features that are already completed.
+- First inspect the current codebase and compare it with the requirements below.
+- Identify exactly where previous work stopped.
+- Continue only from missing or incomplete parts.
+- Keep all existing data safe.
+- Do not delete existing functionality.
+
+Already completed and should be preserved:
+- Database structure and existing schema.
+- Backend API architecture.
+- Authentication and Admin permissions.
+- IPTV source system.
+- Existing IPTV sync engine improvements.
+- Admin panel structure.
+- Viewer application structure.
+- Existing channel/category/source management.
+- Existing UI design and RTL Arabic layout.
+
+Your task:
+Audit the current implementation first, then continue implementing only the unfinished parts of the following professional IPTV features.
+
+=================================
+1. Advanced IPTV Source Management
+=================================
+
+- Add advanced source management.
+- Allow editing IPTV sources.
+- Allow deleting sources.
+- Show source status.
+- Show last sync time.
+- Show number of channels and categories per source.
+- Keep sync history for every source.
+- Support multiple M3U and Xtream sources.
+- Add source-level import settings.
+
+=================================
+2. Smart Channel Import Filters
+=================================
+
+Add import filters per IPTV source:
+
+Language filter:
+- All languages.
+- Arabic only.
+- English only.
+- Custom filter.
+
+Country filter:
+- Import channels by country when metadata is available.
+
+Category/type filter:
+- Sports.
+- News.
+- Movies.
+- Quran.
+- Kids.
+- Other categories.
+
+Requirements:
+- Save filter settings with each IPTV source.
+- Apply filters automatically during every future sync.
+- Do not affect existing data unless explicitly requested.
+
+=================================
+3. Advanced Synchronization System
+=================================
+
+Improve IPTV synchronization:
+
+- Automatic scheduled sync.
+- Admin-controlled sync intervals.
+- Detect new channels.
+- Update existing channels.
+- Remove dead channels automatically during sync.
+- Keep detailed sync logs.
+- Show failed channels and failure reasons.
+- Retry failed sync operations.
+- Improve sync performance for thousands of channels.
+
+=================================
+4. Advanced Channel Management
+=================================
+
+Add advanced channel controls:
+
+- Bulk select channels.
+- Delete selected channels.
+- Delete all channels with confirmation.
+- Bulk enable/disable channels.
+- Search channels.
+- Filter channels by:
+  - Source.
+  - Category.
+  - Language.
+  - Country.
+- Enable/disable channels.
+- Edit channel information.
+- Reorder channels.
+
+Important:
+- Deleting channels must not delete sources or categories unless explicitly requested.
+
+=================================
+5. Advanced Category Management
+=================================
+
+Add:
+
+- Edit categories.
+- Rename categories.
+- Merge duplicate categories.
+- Hide categories from Viewer.
+- Show/hide categories.
+- Reorder category display.
+- Assign channels to categories.
+
+=================================
+6. Channel Health Checking
+=================================
+
+Add automatic channel checking:
+
+- Detect unavailable streams.
+- Mark broken channels.
+- Identify channels that fail playback.
+- Option to hide inactive channels automatically.
+- Keep only working channels visible to viewers.
+
+=================================
+7. Smart Search System
+=================================
+
+Improve search:
+
+- Fast search.
+- Arabic search support.
+- English search support.
+- Search by channel name.
+- Search by category.
+- Search by country.
+- Search suggestions.
+
+=================================
+8. Advanced Admin Statistics Dashboard
+=================================
+
+Expand dashboard:
+
+Show:
+
+- Total channels.
+- Active channels.
+- Inactive channels.
+- Channels per source.
+- Channels per category.
+- Last sync status.
+- Failed streams.
+- Recently added channels.
+- Source health status.
+
+=================================
+9. Live Streaming Optimization
+=================================
+
+Optimize IPTV playback internally from Admin/backend only.
+
+Goal:
+Reduce IPTV live delay as much as possible, especially for live football matches.
+
+Implement:
+
+- Low latency streaming optimization.
+- Reduce unnecessary buffering.
+- Start playback as close as possible to the live edge.
+- Optimize HLS playback.
+- Optimize internal player buffer handling.
+- Fast reconnect after interruptions.
+- Automatic recovery when stream freezes.
+- Choose the best playback configuration automatically depending on stream type.
+
+Important:
+- Users/viewers must not see or control these settings.
+- Do not add user options for:
+  - Buffer.
+  - Quality.
+  - Latency.
+  - Player configuration.
+
+All optimization must be controlled internally by Admin/backend.
+
+=================================
+10. Security and Architecture
+=================================
+
+Requirements:
+
+- Keep all management features Admin-only.
+- Do not expose IPTV source management to viewers.
+- Do not add technical playback settings for users.
+- Keep Viewer app visually unchanged.
+- Maintain current Admin design.
+- Keep compatibility with M3U and Xtream systems.
+- Do not delete existing data.
+- Do not break current functionality.
+
+Before any major database/schema changes:
+- Explain the change first.
+- Confirm data safety.
+- Then proceed.
+
+After implementation:
+Test the complete workflow:
+
+Add source → Apply filters → Sync → Import channels/categories → Check channel health → Display in Viewer.
+
+Do not start from zero.
+Continue from the current implementation and complete the remaining work.

@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import {
   useListAdminChannels,
   useListAdminCategories,
+  useListSources,
   useCreateChannel,
   useUpdateChannel,
   useDeleteChannel,
+  useDeleteAllChannels,
+  useBulkDeleteChannels,
+  useBulkUpdateChannelStatus,
+  useRunHealthCheck,
   getListAdminChannelsQueryKey,
   getGetAdminStatsQueryKey,
 } from "@workspace/api-client-react";
@@ -17,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +45,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Pencil, Trash2, Search } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Loader2, Plus, Pencil, Trash2, Search, ChevronDown, HeartPulse, CheckCheck, X, ShieldAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Channel } from "@workspace/api-client-react";
 
 interface ChannelForm {
@@ -58,34 +72,125 @@ const defaultForm: ChannelForm = {
   is_active: true,
 };
 
+const LANGUAGE_OPTIONS = [
+  { value: "all", label: "كل اللغات" },
+  { value: "ar", label: "عربي" },
+  { value: "en", label: "إنجليزي" },
+  { value: "unknown", label: "غير محدد" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "كل الحالات" },
+  { value: "true", label: "نشط" },
+  { value: "false", label: "معطل" },
+];
+
+const HEALTH_OPTIONS = [
+  { value: "all", label: "كل الحالات" },
+  { value: "true", label: "يعمل" },
+  { value: "false", label: "معطل" },
+  { value: "null", label: "غير مفحوص" },
+];
+
+function HealthBadge({ isHealthy }: { isHealthy: boolean | null }) {
+  if (isHealthy === null || isHealthy === undefined) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return isHealthy ? (
+    <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">يعمل</Badge>
+  ) : (
+    <Badge variant="destructive" className="text-xs">معطل</Badge>
+  );
+}
+
 export default function AdminChannels() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Filters
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [healthFilter, setHealthFilter] = useState("all");
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [form, setForm] = useState<ChannelForm>(defaultForm);
 
+  // Health check progress
+  const [healthChecking, setHealthChecking] = useState(false);
+
   const debouncedSearch = useDebounce(search, 300);
 
-  const params = {
+  const queryParams = {
     ...(debouncedSearch ? { q: debouncedSearch } : {}),
-    ...(categoryFilter && categoryFilter !== "all" ? { category_id: Number(categoryFilter) } : {}),
+    ...(categoryFilter !== "all" ? { category_id: Number(categoryFilter) } : {}),
+    ...(sourceFilter !== "all" ? { source_id: Number(sourceFilter) } : {}),
+    ...(languageFilter !== "all" ? { language: languageFilter } : {}),
+    ...(statusFilter !== "all" ? { is_active: statusFilter === "true" } : {}),
+    // is_healthy filter handled client-side (null case can't be sent as query param)
   };
 
-  const { data: channels = [], isLoading } = useListAdminChannels(params);
+  const { data: channels = [], isLoading } = useListAdminChannels(queryParams);
   const { data: categories = [] } = useListAdminCategories();
+  const { data: sources = [] } = useListSources();
+
+  // Client-side health filter (handles the null/unchecked case)
+  const filteredChannels = useMemo(() => {
+    if (healthFilter === "all") return channels;
+    if (healthFilter === "true") return channels.filter((c) => c.is_healthy === true);
+    if (healthFilter === "false") return channels.filter((c) => c.is_healthy === false);
+    if (healthFilter === "null") return channels.filter((c) => c.is_healthy == null);
+    return channels;
+  }, [channels, healthFilter]);
 
   const createChannel = useCreateChannel();
   const updateChannel = useUpdateChannel();
   const deleteChannel = useDeleteChannel();
+  const deleteAllChannels = useDeleteAllChannels({
+    request: { headers: { "x-confirm-delete-all": "yes" } },
+  });
+  const bulkDeleteChannels = useBulkDeleteChannels();
+  const bulkUpdateStatus = useBulkUpdateChannelStatus();
+  const runHealthCheck = useRunHealthCheck();
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getListAdminChannelsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
   };
+
+  // ── Selection ──────────────────────────────────────────────────────────────
+
+  const allVisible = filteredChannels.map((c) => c.id);
+  const allSelected = allVisible.length > 0 && allVisible.every((id) => selectedIds.has(id));
+  const someSelected = allVisible.some((id) => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allVisible));
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
 
   const openAdd = () => {
     setEditingChannel(null);
@@ -152,54 +257,230 @@ export default function AdminChannels() {
     }
   };
 
-  const getCategoryName = (categoryId?: number | null) => {
-    if (!categoryId) return null;
-    return categories.find((c) => c.id === categoryId)?.name ?? null;
+  // ── Bulk ops ───────────────────────────────────────────────────────────────
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`هل تريد حذف ${selectedIds.size} قناة محددة؟`)) return;
+    try {
+      const result = await bulkDeleteChannels.mutateAsync({ data: { ids: [...selectedIds] } });
+      toast({ title: "تم الحذف", description: `تم حذف ${result.deleted_count} قناة` });
+      clearSelection();
+      invalidate();
+    } catch {
+      toast({ title: "خطأ", description: "فشل الحذف الجماعي", variant: "destructive" });
+    }
   };
 
+  const handleBulkEnable = async (is_active: boolean) => {
+    if (selectedIds.size === 0) return;
+    try {
+      const result = await bulkUpdateStatus.mutateAsync({
+        data: { ids: [...selectedIds], is_active },
+      });
+      toast({
+        title: is_active ? "تم التفعيل" : "تم التعطيل",
+        description: `تم تحديث ${result.updated_count} قناة`,
+      });
+      clearSelection();
+      invalidate();
+    } catch {
+      toast({ title: "خطأ", description: "فشل التحديث الجماعي", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm("هل أنت متأكد؟ سيتم حذف جميع القنوات نهائياً!")) return;
+    if (!window.confirm("تأكيد أخير: حذف جميع القنوات؟")) return;
+    try {
+      const result = await deleteAllChannels.mutateAsync();
+      toast({ title: "تم الحذف الكامل", description: `تم حذف ${result.deleted_count} قناة` });
+      clearSelection();
+      invalidate();
+    } catch {
+      toast({ title: "خطأ", description: "فشل الحذف الكامل", variant: "destructive" });
+    }
+  };
+
+  const handleHealthCheck = async (ids?: number[]) => {
+    setHealthChecking(true);
+    try {
+      const result = await runHealthCheck.mutateAsync({
+        data: ids ? { ids, concurrency: 10 } : { concurrency: 10 },
+      });
+      toast({
+        title: "اكتمل الفحص",
+        description: `✅ ${result.healthy} يعمل  ❌ ${result.broken} معطل  (فحص ${result.checked} قناة)`,
+      });
+      clearSelection();
+      invalidate();
+    } catch {
+      toast({ title: "خطأ", description: "فشل فحص الصحة", variant: "destructive" });
+    } finally {
+      setHealthChecking(false);
+    }
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const getCategoryName = (categoryId?: number | null) =>
+    categoryId ? categories.find((c) => c.id === categoryId)?.name ?? null : null;
+
+  const getSourceName = (sourceId?: number | null) =>
+    sourceId ? sources.find((s) => s.id === sourceId)?.name ?? null : null;
+
   const isMutating = createChannel.isPending || updateChannel.isPending;
+  const selectionCount = selectedIds.size;
+  const hasSelection = selectionCount > 0;
 
   return (
     <AdminLayout>
-      <div className="space-y-6 animate-in fade-in">
+      <div className="space-y-5 animate-in fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">القنوات</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              إجمالي {channels.length} قناة
+              {filteredChannels.length} قناة
+              {hasSelection && (
+                <span className="ms-2 text-primary font-medium">· {selectionCount} محدد</span>
+              )}
             </p>
           </div>
-          <Button onClick={openAdd}>
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة قناة
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            {/* Health check */}
+            <Button
+              variant="secondary"
+              onClick={() => handleHealthCheck()}
+              disabled={healthChecking}
+              size="sm"
+            >
+              {healthChecking ? (
+                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+              ) : (
+                <HeartPulse className="w-4 h-4 ml-2" />
+              )}
+              فحص الصحة
+            </Button>
+
+            {/* Bulk actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm" disabled={!hasSelection}>
+                  إجراءات ({selectionCount})
+                  <ChevronDown className="w-4 h-4 mr-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleBulkEnable(true)}>
+                  <CheckCheck className="w-4 h-4 ml-2 text-green-400" />
+                  تفعيل المحددة
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBulkEnable(false)}>
+                  <X className="w-4 h-4 ml-2 text-muted-foreground" />
+                  تعطيل المحددة
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleHealthCheck([...selectedIds])}
+                  disabled={healthChecking}
+                >
+                  <HeartPulse className="w-4 h-4 ml-2 text-blue-400" />
+                  فحص المحددة
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="w-4 h-4 ml-2" />
+                  حذف المحددة
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Add */}
+            <Button onClick={openAdd} size="sm">
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة قناة
+            </Button>
+
+            {/* Delete all */}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteAll}
+              disabled={deleteAllChannels.isPending}
+            >
+              {deleteAllChannels.isPending ? (
+                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+              ) : (
+                <ShieldAlert className="w-4 h-4 ml-2" />
+              )}
+              حذف الكل
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {/* Search */}
+          <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="بحث عن قناة..."
+              placeholder="بحث..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-9"
             />
           </div>
+          {/* Category */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="كل التصنيفات" />
-            </SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="التصنيف" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل التصنيفات</SelectItem>
               {categories.map((cat) => (
-                <SelectItem key={cat.id} value={String(cat.id)}>
-                  {cat.icon} {cat.name}
-                </SelectItem>
+                <SelectItem key={cat.id} value={String(cat.id)}>{cat.icon} {cat.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {/* Source */}
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger><SelectValue placeholder="المصدر" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل المصادر</SelectItem>
+              {sources.map((src) => (
+                <SelectItem key={src.id} value={String(src.id)}>{src.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Language */}
+          <Select value={languageFilter} onValueChange={setLanguageFilter}>
+            <SelectTrigger><SelectValue placeholder="اللغة" /></SelectTrigger>
+            <SelectContent>
+              {LANGUAGE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Status / Health */}
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="الحالة" /></SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={healthFilter} onValueChange={setHealthFilter}>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="الصحة" /></SelectTrigger>
+              <SelectContent>
+                {HEALTH_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Table */}
@@ -208,34 +489,54 @@ export default function AdminChannels() {
             <div className="flex items-center justify-center h-48">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          ) : channels.length === 0 ? (
+          ) : filteredChannels.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
               <p className="text-lg">لا توجد قنوات</p>
-              <p className="text-sm mt-1">أضف قناة جديدة للبدء</p>
+              <p className="text-sm mt-1">جرب تعديل الفلاتر أو أضف قناة جديدة</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10 text-right">
+                    <Checkbox
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) (el as any).indeterminate = someSelected && !allSelected;
+                      }}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="تحديد الكل"
+                    />
+                  </TableHead>
                   <TableHead className="text-right">الشعار</TableHead>
                   <TableHead className="text-right">الاسم</TableHead>
                   <TableHead className="text-right">التصنيف</TableHead>
+                  <TableHead className="text-right">المصدر</TableHead>
+                  <TableHead className="text-right">اللغة</TableHead>
+                  <TableHead className="text-right">الصحة</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
+                  <TableHead className="text-right">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {channels.map((ch) => (
-                  <TableRow key={ch.id}>
+                {filteredChannels.map((ch) => (
+                  <TableRow
+                    key={ch.id}
+                    className={cn(selectedIds.has(ch.id) && "bg-primary/5")}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(ch.id)}
+                        onCheckedChange={() => toggleSelect(ch.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       {ch.logo_url ? (
                         <img
                           src={ch.logo_url}
                           alt={ch.name}
                           className="w-10 h-10 object-cover rounded"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
                         <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">
@@ -243,22 +544,34 @@ export default function AdminChannels() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{ch.name}</TableCell>
+                    <TableCell className="font-medium max-w-[180px] truncate">{ch.name}</TableCell>
                     <TableCell>
                       {getCategoryName(ch.category_id) ? (
-                        <Badge variant="secondary">{getCategoryName(ch.category_id)}</Badge>
+                        <Badge variant="secondary" className="text-xs">{getCategoryName(ch.category_id)}</Badge>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Switch
-                        checked={ch.is_active}
-                        onCheckedChange={() => handleToggleActive(ch)}
-                      />
+                      {getSourceName(ch.source_id) ? (
+                        <span className="text-xs text-muted-foreground">{getSourceName(ch.source_id)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {ch.language === "ar" ? "🇸🇦 عربي" : ch.language === "en" ? "🇺🇸 إنج" : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <HealthBadge isHealthy={ch.is_healthy ?? null} />
+                    </TableCell>
+                    <TableCell>
+                      <Switch checked={ch.is_active} onCheckedChange={() => handleToggleActive(ch)} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(ch)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -280,7 +593,7 @@ export default function AdminChannels() {
         </div>
       </div>
 
-      {/* Dialog */}
+      {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -339,9 +652,7 @@ export default function AdminChannels() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              إلغاء
-            </Button>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>إلغاء</Button>
             <Button onClick={handleSubmit} disabled={isMutating}>
               {isMutating && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
               {editingChannel ? "حفظ التغييرات" : "إضافة"}

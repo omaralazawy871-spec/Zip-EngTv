@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, gt, isNotNull } from "drizzle-orm";
 import { db, sourcesTable, syncHistoryTable, channelsTable, categoriesTable } from "@workspace/db";
 import {
   ListSourcesResponse,
@@ -13,11 +13,14 @@ import {
   DeleteSourceParams,
   SyncSourceParams,
   SyncSourceResponse,
+  RetrySyncSourceParams,
+  RetrySyncSourceResponse,
   GetSourceSyncHistoryParams,
   GetSourceSyncHistoryResponse,
   SyncAllSourcesResponse,
   GetSyncHistoryResponse,
   GetAdminStatsResponse,
+  GetSchedulerStatusResponse,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { syncSource as doSyncSource } from "../lib/sync-engine";
@@ -39,7 +42,16 @@ router.post("/admin/sources", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const [source] = await db.insert(sourcesTable).values(parsed.data).returning();
+  // If sync_interval_hours > 0, set next_sync_at
+  const intervalHours = parsed.data.sync_interval_hours ?? 0;
+  const nextSyncAt = intervalHours > 0
+    ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
+    : null;
+
+  const [source] = await db
+    .insert(sourcesTable)
+    .values({ ...parsed.data, next_sync_at: nextSyncAt })
+    .returning();
   res.status(201).json(CreateSourceResponse.parse(serializeDates(source)));
 });
 
@@ -78,9 +90,20 @@ router.patch("/admin/sources/:id", requireAdmin, async (req, res): Promise<void>
     return;
   }
 
+  // If interval is changing, recalculate next_sync_at
+  let nextSyncAtUpdate: { next_sync_at: Date | null } = {};
+  if (parsed.data.sync_interval_hours !== undefined) {
+    const intervalHours = parsed.data.sync_interval_hours;
+    nextSyncAtUpdate = {
+      next_sync_at: intervalHours > 0
+        ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
+        : null,
+    };
+  }
+
   const [source] = await db
     .update(sourcesTable)
-    .set({ ...parsed.data, updated_at: new Date() })
+    .set({ ...parsed.data, ...nextSyncAtUpdate, updated_at: new Date() })
     .where(eq(sourcesTable.id, params.data.id))
     .returning();
 
@@ -133,6 +156,29 @@ router.post("/admin/sources/:id/sync", requireAdmin, async (req, res): Promise<v
 
   const result = await doSyncSource(source);
   res.json(SyncSourceResponse.parse(serializeDates(result)));
+});
+
+// POST /admin/sources/:id/retry — retry the last failed sync
+router.post("/admin/sources/:id/retry", requireAdmin, async (req, res): Promise<void> => {
+  const params = RetrySyncSourceParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [source] = await db
+    .select()
+    .from(sourcesTable)
+    .where(eq(sourcesTable.id, params.data.id));
+
+  if (!source) {
+    res.status(404).json({ error: "المصدر غير موجود" });
+    return;
+  }
+
+  // Force retry (bypass the auto-retry-once guard)
+  const result = await doSyncSource(source, false);
+  res.json(RetrySyncSourceResponse.parse(serializeDates(result)));
 });
 
 // GET /admin/sources/:id/sync-history
@@ -196,6 +242,27 @@ router.get("/admin/sync-history", requireAdmin, async (_req, res): Promise<void>
   res.json(GetSyncHistoryResponse.parse(serializeDates(history)));
 });
 
+// GET /admin/scheduler - scheduler status
+router.get("/admin/scheduler", requireAdmin, async (_req, res): Promise<void> => {
+  const sources = await db.select().from(sourcesTable);
+  const scheduledSources = sources
+    .filter((s) => (s.sync_interval_hours ?? 0) > 0)
+    .map((s) => ({
+      source_id: s.id,
+      source_name: s.name,
+      sync_interval_hours: s.sync_interval_hours ?? 0,
+      next_sync_at: s.next_sync_at ? s.next_sync_at.toISOString() : null,
+      last_sync_at: s.last_sync_at ? s.last_sync_at.toISOString() : null,
+    }));
+
+  res.json(
+    GetSchedulerStatusResponse.parse({
+      enabled: scheduledSources.length > 0,
+      scheduled_sources: scheduledSources,
+    })
+  );
+});
+
 // GET /admin/stats - dashboard stats
 router.get("/admin/stats", requireAdmin, async (_req, res): Promise<void> => {
   const channels = await db.select().from(channelsTable);
@@ -211,6 +278,8 @@ router.get("/admin/stats", requireAdmin, async (_req, res): Promise<void> => {
     GetAdminStatsResponse.parse({
       total_channels: channels.length,
       active_channels: channels.filter((c) => c.is_active).length,
+      healthy_channels: channels.filter((c) => c.is_healthy === true).length,
+      broken_channels: channels.filter((c) => c.is_healthy === false).length,
       total_categories: categories.length,
       total_sources: sources.length,
       active_sources: sources.filter((s) => s.status === "active").length,

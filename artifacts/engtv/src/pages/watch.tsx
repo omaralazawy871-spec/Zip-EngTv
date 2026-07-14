@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useGetChannel, useListChannels } from "@workspace/api-client-react";
 import { ViewerLayout } from "@/components/layout/viewer-layout";
@@ -14,91 +14,157 @@ export default function WatchPage() {
   const { id } = useParams();
   const channelId = parseInt(id || "0", 10);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [streamError, setStreamError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
-  
+  const [retryCount, setRetryCount] = useState(0);
+
   const { setWatched } = useLastWatched();
   const { favorites, toggleFavorite } = useFavorites();
   const isFav = favorites.includes(channelId);
 
-  const { data: channel, isLoading: isChannelLoading, isError: isChannelError } = useGetChannel(channelId, {
-    query: { enabled: !!channelId }
+  const { data: channel, isLoading: isChannelLoading, isError: isChannelError } = useGetChannel(channelId);
+
+  const { data: relatedChannels } = useListChannels({
+    category_id: channel?.category_id ?? undefined,
+    active_only: true,
   });
 
-  const { data: relatedChannels } = useListChannels(
-    { category_id: channel?.category_id ?? undefined, active_only: true },
-    { query: { enabled: !!channel?.category_id } }
-  );
-
   useEffect(() => {
-    if (channel?.id) {
-      setWatched(channel.id);
-    }
+    if (channel?.id) setWatched(channel.id);
   }, [channel?.id, setWatched]);
 
-  useEffect(() => {
-    if (!channel?.stream_url || !videoRef.current) return;
+  const destroyHls = useCallback(() => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+  }, []);
 
+  const initPlayer = useCallback(() => {
+    const video = videoRef.current;
+    const streamUrl = channel?.stream_url;
+    if (!video || !streamUrl) return;
+
+    destroyHls();
     setStreamError(false);
     setIsBuffering(true);
-    let hls: Hls | null = null;
 
-    const initPlayer = () => {
-      const video = videoRef.current;
-      if (!video) return;
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        // Live-edge tuning — stay as close to live as possible
+        liveMaxLatencyDuration: 10,       // max 10s behind live edge
+        liveSyncDuration: 3,              // target 3s behind live edge
+        liveMaxLatencyDurationCount: 3,   // expressed in segments
+        maxLiveSyncPlaybackRate: 1.5,     // catch up at 1.5x when falling behind
 
-      if (Hls.isSupported()) {
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 90
-        });
-        
-        hls.loadSource(channel.stream_url);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(e => console.error("Auto-play prevented:", e));
-        });
+        // Buffering
+        maxBufferLength: 30,              // keep up to 30s forward buffer
+        maxBufferSize: 60 * 1000 * 1000, // 60MB buffer cap
+        backBufferLength: 8,              // keep 8s backward for seek
+        highBufferWatchdogPeriod: 3,      // watchdog fires after 3s of high-buffer stall
 
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls?.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls?.recoverMediaError();
-                break;
-              default:
-                setStreamError(true);
-                hls?.destroy();
-                break;
+        // Network
+        fragLoadingTimeOut: 10000,        // 10s per segment fetch
+        manifestLoadingTimeOut: 10000,    // 10s manifest load
+        levelLoadingTimeOut: 10000,
+        fragLoadingMaxRetry: 6,           // retry segments 6 times
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        fragLoadingRetryDelay: 500,
+        fragLoadingMaxRetryTimeout: 4000,
+
+        // Quality selection: always prefer highest quality
+        startLevel: -1,                   // auto quality on start
+        autoStartLoad: true,
+        enableWorker: true,
+
+        // Low-latency mode (useful for LL-HLS streams)
+        lowLatencyMode: true,
+      });
+
+      hlsRef.current = hls;
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        // Once first fragment is buffered, hide spinner
+        setIsBuffering(false);
+      });
+
+      // Auto-recover from fatal errors; non-fatal errors are ignored
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data.fatal) return;
+
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            // Try to recover: reload manifest after short delay
+            setTimeout(() => {
+              if (hlsRef.current) {
+                hlsRef.current.startLoad();
+              }
+            }, 2000);
+            break;
+
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            // Attempt media error recovery
+            hlsRef.current?.recoverMediaError();
+            break;
+
+          default:
+            // Unrecoverable — show error UI
+            setStreamError(true);
+            destroyHls();
+            break;
+        }
+      });
+
+      // Level-switch watchdog: if video stalls for > 8s, jump to live edge
+      let stallTimer: ReturnType<typeof setTimeout> | null = null;
+      video.addEventListener("waiting", () => {
+        setIsBuffering(true);
+        stallTimer = setTimeout(() => {
+          if (hlsRef.current) {
+            try { hlsRef.current.currentLevel = -1; } catch { /* noop */ }
+            // Jump to live edge
+            if (isFinite(video.duration) && video.duration > 0) {
+              video.currentTime = video.duration - 2;
             }
           }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = channel.stream_url;
-        video.addEventListener('loadedmetadata', () => {
-          video.play().catch(e => console.error("Auto-play prevented:", e));
-        });
-        video.addEventListener('error', () => {
-          setStreamError(true);
-        });
-      }
-    };
+        }, 8000);
+      });
+      video.addEventListener("playing", () => {
+        setIsBuffering(false);
+        if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; }
+      });
 
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Native HLS (Safari/iOS)
+      video.src = streamUrl;
+      video.addEventListener("loadedmetadata", () => {
+        video.play().catch(() => {});
+        setIsBuffering(false);
+      });
+      video.addEventListener("error", () => setStreamError(true));
+    } else {
+      setStreamError(true);
+    }
+  }, [channel?.stream_url, destroyHls]);
+
+  useEffect(() => {
     initPlayer();
+    return () => destroyHls();
+  }, [initPlayer, destroyHls]);
 
-    return () => {
-      if (hls) {
-        hls.destroy();
-      }
-    };
-  }, [channel?.stream_url]);
-
-  const handleVideoPlaying = () => setIsBuffering(false);
-  const handleVideoWaiting = () => setIsBuffering(true);
+  const handleRetry = () => {
+    setStreamError(false);
+    setRetryCount((c) => c + 1);
+    setTimeout(initPlayer, 300);
+  };
 
   if (isChannelLoading) {
     return (
@@ -128,14 +194,17 @@ export default function WatchPage() {
     <ViewerLayout>
       <div className="grid lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3 space-y-6">
-          {/* Player Container */}
+          {/* Player */}
           <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
             {streamError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 backdrop-blur-sm z-20 text-center p-6">
                 <AlertCircle className="w-16 h-16 text-destructive mb-4" />
                 <h3 className="text-2xl font-bold mb-2">البث غير متاح حالياً</h3>
-                <p className="text-muted-foreground mb-6">نعتذر، هناك مشكلة في مصدر البث. يرجى المحاولة مرة أخرى لاحقاً.</p>
-                <Button onClick={() => window.location.reload()} variant="outline" className="gap-2">
+                <p className="text-muted-foreground mb-6">
+                  نعتذر، هناك مشكلة في مصدر البث. يرجى المحاولة مرة أخرى.
+                  {retryCount > 0 && <span className="block text-xs mt-1 text-muted-foreground/60">محاولة #{retryCount}</span>}
+                </p>
+                <Button onClick={handleRetry} variant="outline" className="gap-2">
                   <RefreshCw className="w-4 h-4" />
                   إعادة المحاولة
                 </Button>
@@ -153,8 +222,7 @@ export default function WatchPage() {
                   controls
                   playsInline
                   autoPlay
-                  onPlaying={handleVideoPlaying}
-                  onWaiting={handleVideoWaiting}
+                  muted={false}
                 />
               </>
             )}
@@ -174,22 +242,22 @@ export default function WatchPage() {
                 <h1 className="text-2xl font-bold">{channel.name}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
                   </span>
                   <span className="text-sm text-muted-foreground font-medium">مباشر الآن</span>
                 </div>
               </div>
             </div>
-            
-            <Button 
-              size="lg" 
+
+            <Button
+              size="lg"
               variant={isFav ? "secondary" : "default"}
               onClick={() => toggleFavorite(channel.id)}
               className="gap-2 shrink-0"
             >
               <Heart className={cn("w-5 h-5", isFav && "fill-destructive text-destructive")} />
-              {isFav ? 'إزالة من المفضلة' : 'أضف للمفضلة'}
+              {isFav ? "إزالة من المفضلة" : "أضف للمفضلة"}
             </Button>
           </div>
         </div>

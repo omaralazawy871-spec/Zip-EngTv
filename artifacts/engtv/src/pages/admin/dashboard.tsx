@@ -1,6 +1,6 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { useGetAdminStats } from "@workspace/api-client-react";
-import { Tv, FolderTree, PlayCircle, Radio, Loader2 } from "lucide-react";
+import { Tv, FolderTree, PlayCircle, Radio, HeartPulse, XCircle, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
 export default function AdminDashboard() {
@@ -53,6 +53,24 @@ export default function AdminDashboard() {
       bg: "bg-green-500/10",
       href: "/admin/channels",
     },
+    {
+      label: "قنوات تعمل",
+      value: stats?.healthy_channels ?? 0,
+      sub: "تم فحصها",
+      icon: HeartPulse,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      href: "/admin/channels",
+    },
+    {
+      label: "قنوات معطلة",
+      value: stats?.broken_channels ?? 0,
+      sub: "تحتاج مراجعة",
+      icon: XCircle,
+      color: "text-destructive",
+      bg: "bg-destructive/10",
+      href: "/admin/channels",
+    },
   ];
 
   return (
@@ -70,7 +88,7 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (

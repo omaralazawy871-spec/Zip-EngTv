@@ -5,6 +5,7 @@
  * EngTv IPTV API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SourceFilterLanguage } from './sourceFilterLanguage';
 import type { SourceStatus } from './sourceStatus';
 import type { SourceType } from './sourceType';
 
@@ -29,4 +30,12 @@ export interface Source {
   category_count?: number;
   created_at?: string;
   updated_at?: string;
+  filter_language: SourceFilterLanguage;
+  /** @nullable */
+  filter_countries?: string | null;
+  /** @nullable */
+  filter_categories?: string | null;
+  sync_interval_hours: number;
+  /** @nullable */
+  next_sync_at?: string | null;
 }

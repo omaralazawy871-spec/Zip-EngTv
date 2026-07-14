@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, ilike, and } from "drizzle-orm";
+import { eq, asc, ilike, and, inArray } from "drizzle-orm";
 import { db, channelsTable } from "@workspace/db";
 import {
   ListChannelsQueryParams,
@@ -16,9 +16,17 @@ import {
   DeleteChannelParams,
   ReorderChannelsBody,
   ReorderChannelsResponse,
+  BulkDeleteChannelsBody,
+  BulkDeleteChannelsResponse,
+  BulkUpdateChannelStatusBody,
+  BulkUpdateChannelStatusResponse,
+  RunHealthCheckBody,
+  RunHealthCheckResponse,
+  DeleteAllChannelsResponse,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { serializeDates } from "../lib/serialize";
+import { runHealthCheck } from "../lib/health-checker";
 
 const router: IRouter = Router();
 
@@ -73,7 +81,7 @@ router.get("/channels/:id", async (req, res): Promise<void> => {
   res.json(GetChannelResponse.parse(serializeDates(channel)));
 });
 
-// GET /admin/channels - list all including inactive (admin)
+// GET /admin/channels - list all including inactive, advanced filters (admin)
 router.get("/admin/channels", requireAdmin, async (req, res): Promise<void> => {
   const query = ListAdminChannelsQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -81,7 +89,7 @@ router.get("/admin/channels", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const { category_id, q, source_id } = query.data;
+  const { category_id, q, source_id, language, country, is_active, is_healthy } = query.data;
   const conditions = [];
 
   if (category_id !== undefined && category_id !== null) {
@@ -89,6 +97,18 @@ router.get("/admin/channels", requireAdmin, async (req, res): Promise<void> => {
   }
   if (source_id !== undefined && source_id !== null) {
     conditions.push(eq(channelsTable.source_id, source_id));
+  }
+  if (language) {
+    conditions.push(eq(channelsTable.language, language));
+  }
+  if (country) {
+    conditions.push(ilike(channelsTable.country, country));
+  }
+  if (is_active !== undefined && is_active !== null) {
+    conditions.push(eq(channelsTable.is_active, is_active));
+  }
+  if (is_healthy !== undefined && is_healthy !== null) {
+    conditions.push(eq(channelsTable.is_healthy, is_healthy));
   }
   if (q && q.trim()) {
     conditions.push(ilike(channelsTable.name, `%${q.trim()}%`));
@@ -127,7 +147,19 @@ router.post("/admin/channels", requireAdmin, async (req, res): Promise<void> => 
   res.status(201).json(CreateChannelResponse.parse(serializeDates(channel)));
 });
 
-// PATCH /admin/channels/reorder (must be before /:id)
+// DELETE /admin/channels - delete ALL channels (requires confirm header)
+router.delete("/admin/channels", requireAdmin, async (req, res): Promise<void> => {
+  const confirm = req.headers["x-confirm-delete-all"];
+  if (confirm !== "yes") {
+    res.status(400).json({ error: "يجب تأكيد الحذف عبر الترويسة x-confirm-delete-all: yes" });
+    return;
+  }
+
+  const deleted = await db.delete(channelsTable).returning({ id: channelsTable.id });
+  res.json(DeleteAllChannelsResponse.parse({ deleted_count: deleted.length }));
+});
+
+// PATCH /admin/channels/reorder (must come before /:id)
 router.patch("/admin/channels/reorder", requireAdmin, async (req, res): Promise<void> => {
   const parsed = ReorderChannelsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -143,6 +175,55 @@ router.patch("/admin/channels/reorder", requireAdmin, async (req, res): Promise<
   }
 
   res.json(ReorderChannelsResponse.parse({ success: true }));
+});
+
+// POST /admin/channels/bulk-delete
+router.post("/admin/channels/bulk-delete", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = BulkDeleteChannelsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const deleted = await db
+    .delete(channelsTable)
+    .where(inArray(channelsTable.id, parsed.data.ids))
+    .returning({ id: channelsTable.id });
+
+  res.json(BulkDeleteChannelsResponse.parse({ deleted_count: deleted.length }));
+});
+
+// POST /admin/channels/bulk-status
+router.post("/admin/channels/bulk-status", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = BulkUpdateChannelStatusBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const updated = await db
+    .update(channelsTable)
+    .set({ is_active: parsed.data.is_active })
+    .where(inArray(channelsTable.id, parsed.data.ids))
+    .returning({ id: channelsTable.id });
+
+  res.json(BulkUpdateChannelStatusResponse.parse({ updated_count: updated.length }));
+});
+
+// POST /admin/channels/health-check
+router.post("/admin/channels/health-check", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = RunHealthCheckBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const result = await runHealthCheck({
+    ids: parsed.data.ids,
+    concurrency: parsed.data.concurrency,
+  });
+
+  res.json(RunHealthCheckResponse.parse(result));
 });
 
 // PATCH /admin/channels/:id - update (admin)

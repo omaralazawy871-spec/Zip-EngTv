@@ -7,9 +7,8 @@ export default function CategoryPage() {
   const { id } = useParams();
   const categoryId = parseInt(id || "0", 10);
   
-  const { data: category, isLoading, isError } = useGetCategory(categoryId, { 
-    query: { enabled: !!categoryId } 
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: category, isLoading, isError } = useGetCategory(categoryId, { query: { enabled: !!categoryId } as any });
 
   return (
     <ViewerLayout>

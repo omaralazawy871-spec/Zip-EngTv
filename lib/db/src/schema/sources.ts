@@ -18,6 +18,13 @@ export const sourcesTable = pgTable("sources", {
   category_count: integer("category_count").notNull().default(0),
   created_at: timestamp("created_at").notNull().defaultNow(),
   updated_at: timestamp("updated_at").notNull().defaultNow(),
+  // Import filters (applied during sync)
+  filter_language: text("filter_language").notNull().default("all"), // 'all' | 'arabic' | 'english'
+  filter_countries: text("filter_countries"), // comma-separated ISO codes, null/empty = all
+  filter_categories: text("filter_categories"), // comma-separated patterns, null/empty = all
+  // Auto-sync scheduler
+  sync_interval_hours: integer("sync_interval_hours").notNull().default(0), // 0 = manual only
+  next_sync_at: timestamp("next_sync_at"),
 });
 
 export type Source = typeof sourcesTable.$inferSelect;

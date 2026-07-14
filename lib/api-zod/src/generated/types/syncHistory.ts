@@ -13,6 +13,7 @@ export interface SyncHistory {
   status: SyncHistoryStatus;
   channels_imported?: number;
   categories_imported?: number;
+  channels_deactivated?: number;
   /** @nullable */
   error_message?: string | null;
   started_at: string;

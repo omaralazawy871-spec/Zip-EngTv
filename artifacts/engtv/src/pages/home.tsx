@@ -10,7 +10,8 @@ export default function Home() {
   const { data: categories, isLoading: catsLoading } = useListCategories();
   const { data: channels, isLoading: channelsLoading } = useListChannels({ active_only: true });
   const { lastWatched } = useLastWatched();
-  const { data: lastChannel } = useGetChannel(lastWatched!, { query: { enabled: !!lastWatched } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: lastChannel } = useGetChannel(lastWatched ?? 0, { query: { enabled: !!lastWatched } as any });
 
   return (
     <ViewerLayout>

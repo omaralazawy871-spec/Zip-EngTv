@@ -95,7 +95,17 @@ export interface Channel {
   external_id?: string | null;
   is_active: boolean;
   sort_order: number;
+  /** @nullable */
+  language?: string | null;
+  /** @nullable */
+  country?: string | null;
   created_at?: string;
+  /** @nullable */
+  last_checked_at?: string | null;
+  /** @nullable */
+  is_healthy?: boolean | null;
+  /** @nullable */
+  health_error?: string | null;
 }
 
 export interface CategoryWithChannels {
@@ -139,6 +149,39 @@ export interface ChannelUpdate {
   sort_order?: number | null;
 }
 
+export interface BulkIdsInput {
+  /** @minItems 1 */
+  ids: number[];
+}
+
+export interface BulkStatusInput {
+  /** @minItems 1 */
+  ids: number[];
+  is_active: boolean;
+}
+
+export interface BulkDeleteResult {
+  deleted_count: number;
+}
+
+export interface BulkUpdateResult {
+  updated_count: number;
+}
+
+export interface HealthCheckInput {
+  /** Specific channel IDs to check. If omitted, checks all active channels. */
+  ids?: number[];
+  /** Max parallel checks (default 10, max 30) */
+  concurrency?: number;
+}
+
+export interface HealthCheckResult {
+  checked: number;
+  healthy: number;
+  broken: number;
+  skipped: number;
+}
+
 export interface ReorderItem {
   id: number;
   sort_order: number;
@@ -164,6 +207,15 @@ export const SourceStatus = {
   inactive: 'inactive',
 } as const;
 
+export type SourceFilterLanguage = typeof SourceFilterLanguage[keyof typeof SourceFilterLanguage];
+
+
+export const SourceFilterLanguage = {
+  all: 'all',
+  arabic: 'arabic',
+  english: 'english',
+} as const;
+
 export interface Source {
   id: number;
   name: string;
@@ -185,6 +237,14 @@ export interface Source {
   category_count?: number;
   created_at?: string;
   updated_at?: string;
+  filter_language: SourceFilterLanguage;
+  /** @nullable */
+  filter_countries?: string | null;
+  /** @nullable */
+  filter_categories?: string | null;
+  sync_interval_hours: number;
+  /** @nullable */
+  next_sync_at?: string | null;
 }
 
 export type SourceInputType = typeof SourceInputType[keyof typeof SourceInputType];
@@ -203,6 +263,15 @@ export const SourceInputStatus = {
   inactive: 'inactive',
 } as const;
 
+export type SourceInputFilterLanguage = typeof SourceInputFilterLanguage[keyof typeof SourceInputFilterLanguage];
+
+
+export const SourceInputFilterLanguage = {
+  all: 'all',
+  arabic: 'arabic',
+  english: 'english',
+} as const;
+
 export interface SourceInput {
   /** @minLength 1 */
   name: string;
@@ -216,6 +285,12 @@ export interface SourceInput {
   username?: string | null;
   /** @nullable */
   password?: string | null;
+  filter_language?: SourceInputFilterLanguage;
+  /** @nullable */
+  filter_countries?: string | null;
+  /** @nullable */
+  filter_categories?: string | null;
+  sync_interval_hours?: number;
 }
 
 export type SourceUpdateType = typeof SourceUpdateType[keyof typeof SourceUpdateType];
@@ -234,6 +309,15 @@ export const SourceUpdateStatus = {
   inactive: 'inactive',
 } as const;
 
+export type SourceUpdateFilterLanguage = typeof SourceUpdateFilterLanguage[keyof typeof SourceUpdateFilterLanguage];
+
+
+export const SourceUpdateFilterLanguage = {
+  all: 'all',
+  arabic: 'arabic',
+  english: 'english',
+} as const;
+
 export interface SourceUpdate {
   /** @minLength 1 */
   name?: string;
@@ -247,12 +331,19 @@ export interface SourceUpdate {
   username?: string | null;
   /** @nullable */
   password?: string | null;
+  filter_language?: SourceUpdateFilterLanguage;
+  /** @nullable */
+  filter_countries?: string | null;
+  /** @nullable */
+  filter_categories?: string | null;
+  sync_interval_hours?: number;
 }
 
 export interface SyncResult {
   success: boolean;
   channels_imported: number;
   categories_imported: number;
+  channels_deactivated?: number;
   /** @nullable */
   error_message?: string | null;
   duration_ms?: number;
@@ -281,6 +372,7 @@ export interface SyncHistory {
   status: SyncHistoryStatus;
   channels_imported?: number;
   categories_imported?: number;
+  channels_deactivated?: number;
   /** @nullable */
   error_message?: string | null;
   started_at: string;
@@ -288,9 +380,26 @@ export interface SyncHistory {
   completed_at?: string | null;
 }
 
+export interface ScheduledSource {
+  source_id: number;
+  source_name: string;
+  sync_interval_hours: number;
+  /** @nullable */
+  next_sync_at: string | null;
+  /** @nullable */
+  last_sync_at?: string | null;
+}
+
+export interface SchedulerStatus {
+  enabled: boolean;
+  scheduled_sources: ScheduledSource[];
+}
+
 export interface AdminStats {
   total_channels: number;
   active_channels: number;
+  healthy_channels?: number;
+  broken_channels?: number;
   total_categories: number;
   total_sources: number;
   active_sources: number;
@@ -308,5 +417,9 @@ export type ListAdminChannelsParams = {
 category_id?: number;
 q?: string;
 source_id?: number;
+language?: string;
+country?: string;
+is_active?: boolean;
+is_healthy?: boolean;
 };
 

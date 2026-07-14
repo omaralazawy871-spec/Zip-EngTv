@@ -10,4 +10,8 @@ export type ListAdminChannelsParams = {
 category_id?: number;
 q?: string;
 source_id?: number;
+language?: string;
+country?: string;
+is_active?: boolean;
+is_healthy?: boolean;
 };

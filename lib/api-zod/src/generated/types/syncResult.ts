@@ -10,6 +10,7 @@ export interface SyncResult {
   success: boolean;
   channels_imported: number;
   categories_imported: number;
+  channels_deactivated?: number;
   /** @nullable */
   error_message?: string | null;
   duration_ms?: number;

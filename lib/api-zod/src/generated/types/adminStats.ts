@@ -9,6 +9,8 @@
 export interface AdminStats {
   total_channels: number;
   active_channels: number;
+  healthy_channels?: number;
+  broken_channels?: number;
   total_categories: number;
   total_sources: number;
   active_sources: number;

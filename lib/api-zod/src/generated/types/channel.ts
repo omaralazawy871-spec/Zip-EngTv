@@ -20,5 +20,15 @@ export interface Channel {
   external_id?: string | null;
   is_active: boolean;
   sort_order: number;
+  /** @nullable */
+  language?: string | null;
+  /** @nullable */
+  country?: string | null;
   created_at?: string;
+  /** @nullable */
+  last_checked_at?: string | null;
+  /** @nullable */
+  is_healthy?: boolean | null;
+  /** @nullable */
+  health_error?: string | null;
 }

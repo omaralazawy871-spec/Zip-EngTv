@@ -13,10 +13,8 @@ export default function SearchPage() {
   // Only search if query > 1 char, otherwise skip fetch
   const shouldSearch = debouncedQuery.trim().length > 1;
   
-  const { data: results, isLoading } = useListChannels(
-    { q: debouncedQuery, active_only: true },
-    { query: { enabled: shouldSearch } }
-  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: results, isLoading } = useListChannels({ q: debouncedQuery, active_only: true }, { query: { enabled: shouldSearch } as any });
 
   return (
     <ViewerLayout>

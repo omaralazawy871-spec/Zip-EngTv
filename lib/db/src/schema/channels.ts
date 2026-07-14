@@ -13,6 +13,10 @@ export const channelsTable = pgTable("channels", {
   language: text("language").default("unknown"), // 'ar', 'en', 'unknown'
   country: text("country"), // ISO country code
   created_at: timestamp("created_at").notNull().defaultNow(),
+  // Health check
+  last_checked_at: timestamp("last_checked_at"),
+  is_healthy: boolean("is_healthy"), // null = unchecked, true = working, false = broken
+  health_error: text("health_error"),
 });
 
 export type Channel = typeof channelsTable.$inferSelect;

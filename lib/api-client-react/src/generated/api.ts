@@ -25,6 +25,10 @@ import type {
   AdminStats,
   AppSettings,
   AppSettingsUpdate,
+  BulkDeleteResult,
+  BulkIdsInput,
+  BulkStatusInput,
+  BulkUpdateResult,
   Category,
   CategoryInput,
   CategoryUpdate,
@@ -33,10 +37,13 @@ import type {
   ChannelInput,
   ChannelUpdate,
   ErrorResponse,
+  HealthCheckInput,
+  HealthCheckResult,
   HealthStatus,
   ListAdminChannelsParams,
   ListChannelsParams,
   ReorderInput,
+  SchedulerStatus,
   Source,
   SourceInput,
   SourceUpdate,
@@ -1201,6 +1208,77 @@ export const useCreateChannel = <TError = ErrorType<unknown>,
       return useMutation(getCreateChannelMutationOptions(options));
     }
 
+export const getDeleteAllChannelsUrl = () => {
+
+
+
+
+  return `/api/admin/channels`
+}
+
+/**
+ * @summary Delete ALL channels (admin, requires confirm header)
+ */
+export const deleteAllChannels = async ( options?: RequestInit): Promise<BulkDeleteResult> => {
+
+  return customFetch<BulkDeleteResult>(getDeleteAllChannelsUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAllChannelsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAllChannels>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAllChannels>>, TError,void, TContext> => {
+
+const mutationKey = ['deleteAllChannels'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAllChannels>>, void> = () => {
+
+
+          return  deleteAllChannels(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAllChannelsMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAllChannels>>>
+
+    export type DeleteAllChannelsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete ALL channels (admin, requires confirm header)
+ */
+export const useDeleteAllChannels = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAllChannels>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAllChannels>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteAllChannelsMutationOptions(options));
+    }
+
 export const getReorderChannelsUrl = () => {
 
 
@@ -1270,6 +1348,219 @@ export const useReorderChannels = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getReorderChannelsMutationOptions(options));
+    }
+
+export const getBulkDeleteChannelsUrl = () => {
+
+
+
+
+  return `/api/admin/channels/bulk-delete`
+}
+
+/**
+ * @summary Delete multiple channels by ID (admin)
+ */
+export const bulkDeleteChannels = async (bulkIdsInput: BulkIdsInput, options?: RequestInit): Promise<BulkDeleteResult> => {
+
+  return customFetch<BulkDeleteResult>(getBulkDeleteChannelsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkIdsInput)
+  }
+);}
+
+
+
+
+
+export const getBulkDeleteChannelsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteChannels>>, TError,{data: BodyType<BulkIdsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteChannels>>, TError,{data: BodyType<BulkIdsInput>}, TContext> => {
+
+const mutationKey = ['bulkDeleteChannels'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDeleteChannels>>, {data: BodyType<BulkIdsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDeleteChannels(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDeleteChannelsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDeleteChannels>>>
+    export type BulkDeleteChannelsMutationBody = BodyType<BulkIdsInput>
+    export type BulkDeleteChannelsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete multiple channels by ID (admin)
+ */
+export const useBulkDeleteChannels = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDeleteChannels>>, TError,{data: BodyType<BulkIdsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDeleteChannels>>,
+        TError,
+        {data: BodyType<BulkIdsInput>},
+        TContext
+      > => {
+      return useMutation(getBulkDeleteChannelsMutationOptions(options));
+    }
+
+export const getBulkUpdateChannelStatusUrl = () => {
+
+
+
+
+  return `/api/admin/channels/bulk-status`
+}
+
+/**
+ * @summary Enable or disable multiple channels by ID (admin)
+ */
+export const bulkUpdateChannelStatus = async (bulkStatusInput: BulkStatusInput, options?: RequestInit): Promise<BulkUpdateResult> => {
+
+  return customFetch<BulkUpdateResult>(getBulkUpdateChannelStatusUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkStatusInput)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdateChannelStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelStatus>>, TError,{data: BodyType<BulkStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelStatus>>, TError,{data: BodyType<BulkStatusInput>}, TContext> => {
+
+const mutationKey = ['bulkUpdateChannelStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateChannelStatus>>, {data: BodyType<BulkStatusInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateChannelStatus(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateChannelStatusMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateChannelStatus>>>
+    export type BulkUpdateChannelStatusMutationBody = BodyType<BulkStatusInput>
+    export type BulkUpdateChannelStatusMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Enable or disable multiple channels by ID (admin)
+ */
+export const useBulkUpdateChannelStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelStatus>>, TError,{data: BodyType<BulkStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateChannelStatus>>,
+        TError,
+        {data: BodyType<BulkStatusInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpdateChannelStatusMutationOptions(options));
+    }
+
+export const getRunHealthCheckUrl = () => {
+
+
+
+
+  return `/api/admin/channels/health-check`
+}
+
+/**
+ * @summary Check stream availability for channels (admin)
+ */
+export const runHealthCheck = async (healthCheckInput: HealthCheckInput, options?: RequestInit): Promise<HealthCheckResult> => {
+
+  return customFetch<HealthCheckResult>(getRunHealthCheckUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(healthCheckInput)
+  }
+);}
+
+
+
+
+
+export const getRunHealthCheckMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runHealthCheck>>, TError,{data: BodyType<HealthCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runHealthCheck>>, TError,{data: BodyType<HealthCheckInput>}, TContext> => {
+
+const mutationKey = ['runHealthCheck'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runHealthCheck>>, {data: BodyType<HealthCheckInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runHealthCheck(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunHealthCheckMutationResult = NonNullable<Awaited<ReturnType<typeof runHealthCheck>>>
+    export type RunHealthCheckMutationBody = BodyType<HealthCheckInput>
+    export type RunHealthCheckMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Check stream availability for channels (admin)
+ */
+export const useRunHealthCheck = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runHealthCheck>>, TError,{data: BodyType<HealthCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runHealthCheck>>,
+        TError,
+        {data: BodyType<HealthCheckInput>},
+        TContext
+      > => {
+      return useMutation(getRunHealthCheckMutationOptions(options));
     }
 
 export const getUpdateChannelUrl = (id: number,) => {
@@ -1854,6 +2145,77 @@ export const useSyncSource = <TError = ErrorType<ErrorResponse>,
       return useMutation(getSyncSourceMutationOptions(options));
     }
 
+export const getRetrySyncSourceUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/sources/${id}/retry`
+}
+
+/**
+ * @summary Retry the last failed sync for a source (admin)
+ */
+export const retrySyncSource = async (id: number, options?: RequestInit): Promise<SyncResult> => {
+
+  return customFetch<SyncResult>(getRetrySyncSourceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetrySyncSourceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySyncSource>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retrySyncSource>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['retrySyncSource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retrySyncSource>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  retrySyncSource(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetrySyncSourceMutationResult = NonNullable<Awaited<ReturnType<typeof retrySyncSource>>>
+
+    export type RetrySyncSourceMutationError = ErrorType<void>
+
+    /**
+ * @summary Retry the last failed sync for a source (admin)
+ */
+export const useRetrySyncSource = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySyncSource>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retrySyncSource>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRetrySyncSourceMutationOptions(options));
+    }
+
 export const getGetSourceSyncHistoryUrl = (id: number,) => {
 
 
@@ -2067,6 +2429,83 @@ export function useGetSyncHistory<TData = Awaited<ReturnType<typeof getSyncHisto
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSyncHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSchedulerStatusUrl = () => {
+
+
+
+
+  return `/api/admin/scheduler`
+}
+
+/**
+ * @summary Get scheduler status and next scheduled syncs (admin)
+ */
+export const getSchedulerStatus = async ( options?: RequestInit): Promise<SchedulerStatus> => {
+
+  return customFetch<SchedulerStatus>(getGetSchedulerStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSchedulerStatusQueryKey = () => {
+    return [
+    `/api/admin/scheduler`
+    ] as const;
+    }
+
+
+export const getGetSchedulerStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSchedulerStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchedulerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSchedulerStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSchedulerStatus>>> = ({ signal }) => getSchedulerStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSchedulerStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSchedulerStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSchedulerStatus>>>
+export type GetSchedulerStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get scheduler status and next scheduled syncs (admin)
+ */
+
+export function useGetSchedulerStatus<TData = Awaited<ReturnType<typeof getSchedulerStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchedulerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSchedulerStatusQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
