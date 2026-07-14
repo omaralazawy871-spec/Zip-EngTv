@@ -21,13 +21,14 @@ import {
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
 import { syncSource as doSyncSource } from "../lib/sync-engine";
+import { serializeDates } from "../lib/serialize";
 
 const router: IRouter = Router();
 
 // GET /admin/sources
 router.get("/admin/sources", requireAdmin, async (_req, res): Promise<void> => {
   const sources = await db.select().from(sourcesTable);
-  res.json(ListSourcesResponse.parse(sources));
+  res.json(ListSourcesResponse.parse(serializeDates(sources)));
 });
 
 // POST /admin/sources
@@ -39,7 +40,7 @@ router.post("/admin/sources", requireAdmin, async (req, res): Promise<void> => {
   }
 
   const [source] = await db.insert(sourcesTable).values(parsed.data).returning();
-  res.status(201).json(CreateSourceResponse.parse(source));
+  res.status(201).json(CreateSourceResponse.parse(serializeDates(source)));
 });
 
 // GET /admin/sources/:id
@@ -60,7 +61,7 @@ router.get("/admin/sources/:id", requireAdmin, async (req, res): Promise<void> =
     return;
   }
 
-  res.json(GetSourceResponse.parse(source));
+  res.json(GetSourceResponse.parse(serializeDates(source)));
 });
 
 // PATCH /admin/sources/:id
@@ -88,7 +89,7 @@ router.patch("/admin/sources/:id", requireAdmin, async (req, res): Promise<void>
     return;
   }
 
-  res.json(UpdateSourceResponse.parse(source));
+  res.json(UpdateSourceResponse.parse(serializeDates(source)));
 });
 
 // DELETE /admin/sources/:id
@@ -131,7 +132,7 @@ router.post("/admin/sources/:id/sync", requireAdmin, async (req, res): Promise<v
   }
 
   const result = await doSyncSource(source);
-  res.json(SyncSourceResponse.parse(result));
+  res.json(SyncSourceResponse.parse(serializeDates(result)));
 });
 
 // GET /admin/sources/:id/sync-history
@@ -149,7 +150,7 @@ router.get("/admin/sources/:id/sync-history", requireAdmin, async (req, res): Pr
     .orderBy(desc(syncHistoryTable.started_at))
     .limit(50);
 
-  res.json(GetSourceSyncHistoryResponse.parse(history));
+  res.json(GetSourceSyncHistoryResponse.parse(serializeDates(history)));
 });
 
 // POST /admin/sync - sync all active sources
@@ -192,7 +193,7 @@ router.get("/admin/sync-history", requireAdmin, async (_req, res): Promise<void>
     .orderBy(desc(syncHistoryTable.started_at))
     .limit(100);
 
-  res.json(GetSyncHistoryResponse.parse(history));
+  res.json(GetSyncHistoryResponse.parse(serializeDates(history)));
 });
 
 // GET /admin/stats - dashboard stats

@@ -113,7 +113,7 @@ async function fetchXtream(
   return { entries, categories };
 }
 
-async function getOrCreateCategory(name: string): Promise<number> {
+async function getOrCreateCategory(name: string, nextSortOrder: number): Promise<number> {
   const existing = await db
     .select()
     .from(categoriesTable)
@@ -121,10 +121,9 @@ async function getOrCreateCategory(name: string): Promise<number> {
 
   if (existing.length > 0) return existing[0].id;
 
-  const total = await db.select().from(categoriesTable);
   const [created] = await db
     .insert(categoriesTable)
-    .values({ name, sort_order: total.length, is_visible: true })
+    .values({ name, sort_order: nextSortOrder, is_visible: true })
     .returning();
 
   return created.id;
@@ -161,36 +160,38 @@ export async function syncSource(source: Source): Promise<SyncResult> {
 
     // Upsert categories
     const uniqueGroups = [...new Set(entries.map((e) => e.group).filter(Boolean))] as string[];
+    let nextCategorySortOrder = (await db.select().from(categoriesTable)).length;
     for (const groupName of uniqueGroups) {
-      const catId = await getOrCreateCategory(groupName);
+      const catId = await getOrCreateCategory(groupName, nextCategorySortOrder);
       categoryCache.set(groupName, catId);
       categoriesImported++;
+      nextCategorySortOrder++;
     }
 
     // Upsert channels - match by external_id + source_id, or name + source_id
+    // Fetch existing channels for this source ONCE up front (not per-entry) to
+    // avoid O(n) full-table scans per channel, which times out large playlists.
     let channelsImported = 0;
+
+    const existingForSource = await db
+      .select()
+      .from(channelsTable)
+      .where(eq(channelsTable.source_id, source.id));
+
+    const byExternalId = new Map(
+      existingForSource.filter((c) => c.external_id).map((c) => [c.external_id as string, c])
+    );
+    const byName = new Map(existingForSource.map((c) => [c.name, c]));
+
+    const totalChannelsCount = (await db.select().from(channelsTable)).length;
+    let nextSortOrder = totalChannelsCount;
 
     for (const entry of entries) {
       const categoryId = entry.group ? categoryCache.get(entry.group) ?? null : null;
       const externalId = entry.tvgId || null;
 
-      // Try to find existing channel by external_id or name
-      let existingChannel = null;
-      if (externalId) {
-        const found = await db
-          .select()
-          .from(channelsTable)
-          .where(eq(channelsTable.source_id, source.id));
-        existingChannel = found.find((c) => c.external_id === externalId) ?? null;
-      }
-
-      if (!existingChannel) {
-        const found = await db
-          .select()
-          .from(channelsTable)
-          .where(eq(channelsTable.source_id, source.id));
-        existingChannel = found.find((c) => c.name === entry.name) ?? null;
-      }
+      const existingChannel =
+        (externalId ? byExternalId.get(externalId) : undefined) ?? byName.get(entry.name) ?? null;
 
       if (existingChannel) {
         // Update existing
@@ -206,17 +207,24 @@ export async function syncSource(source: Source): Promise<SyncResult> {
           .where(eq(channelsTable.id, existingChannel.id));
       } else {
         // Insert new
-        const allChannels = await db.select().from(channelsTable);
-        await db.insert(channelsTable).values({
-          name: entry.name,
-          stream_url: entry.url,
-          logo_url: entry.logo || null,
-          category_id: categoryId,
-          source_id: source.id,
-          external_id: externalId,
-          is_active: true,
-          sort_order: allChannels.length,
-        });
+        const [inserted] = await db
+          .insert(channelsTable)
+          .values({
+            name: entry.name,
+            stream_url: entry.url,
+            logo_url: entry.logo || null,
+            category_id: categoryId,
+            source_id: source.id,
+            external_id: externalId,
+            is_active: true,
+            sort_order: nextSortOrder++,
+          })
+          .returning();
+
+        // Keep local caches in sync so later duplicate entries in the same
+        // playlist match against this newly-inserted row instead of re-inserting.
+        if (externalId) byExternalId.set(externalId, inserted);
+        byName.set(entry.name, inserted);
       }
 
       channelsImported++;

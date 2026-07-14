@@ -16,6 +16,7 @@ import {
   ReorderCategoriesResponse,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
+import { serializeDates } from "../lib/serialize";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ router.get("/categories", async (_req, res): Promise<void> => {
     .from(categoriesTable)
     .where(eq(categoriesTable.is_visible, true))
     .orderBy(asc(categoriesTable.sort_order), asc(categoriesTable.id));
-  res.json(ListCategoriesResponse.parse(categories));
+  res.json(ListCategoriesResponse.parse(serializeDates(categories)));
 });
 
 // GET /categories/:id - get with channels (public)
@@ -53,7 +54,7 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
     .where(eq(channelsTable.category_id, params.data.id))
     .orderBy(asc(channelsTable.sort_order), asc(channelsTable.id));
 
-  res.json(GetCategoryResponse.parse({ ...category, channels }));
+  res.json(GetCategoryResponse.parse(serializeDates({ ...category, channels })));
 });
 
 // GET /admin/categories - list all including hidden (admin)
@@ -62,7 +63,7 @@ router.get("/admin/categories", requireAdmin, async (_req, res): Promise<void> =
     .select()
     .from(categoriesTable)
     .orderBy(asc(categoriesTable.sort_order), asc(categoriesTable.id));
-  res.json(ListAdminCategoriesResponse.parse(categories));
+  res.json(ListAdminCategoriesResponse.parse(serializeDates(categories)));
 });
 
 // POST /admin/categories - create (admin)
@@ -86,7 +87,7 @@ router.post("/admin/categories", requireAdmin, async (req, res): Promise<void> =
     .values({ ...rest, sort_order: finalOrder })
     .returning();
 
-  res.status(201).json(CreateCategoryResponse.parse(category));
+  res.status(201).json(CreateCategoryResponse.parse(serializeDates(category)));
 });
 
 // PATCH /admin/categories/reorder (must be before /:id)
@@ -132,7 +133,7 @@ router.patch("/admin/categories/:id", requireAdmin, async (req, res): Promise<vo
     return;
   }
 
-  res.json(UpdateCategoryResponse.parse(category));
+  res.json(UpdateCategoryResponse.parse(serializeDates(category)));
 });
 
 // DELETE /admin/categories/:id - delete (admin)

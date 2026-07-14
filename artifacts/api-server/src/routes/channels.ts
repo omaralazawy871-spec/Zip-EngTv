@@ -18,6 +18,7 @@ import {
   ReorderChannelsResponse,
 } from "@workspace/api-zod";
 import { requireAdmin } from "../middlewares/auth";
+import { serializeDates } from "../lib/serialize";
 
 const router: IRouter = Router();
 
@@ -48,7 +49,7 @@ router.get("/channels", async (req, res): Promise<void> => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(channelsTable.sort_order), asc(channelsTable.id));
 
-  res.json(ListChannelsResponse.parse(channels));
+  res.json(ListChannelsResponse.parse(serializeDates(channels)));
 });
 
 // GET /channels/:id (public)
@@ -69,7 +70,7 @@ router.get("/channels/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(GetChannelResponse.parse(channel));
+  res.json(GetChannelResponse.parse(serializeDates(channel)));
 });
 
 // GET /admin/channels - list all including inactive (admin)
@@ -99,7 +100,7 @@ router.get("/admin/channels", requireAdmin, async (req, res): Promise<void> => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(channelsTable.sort_order), asc(channelsTable.id));
 
-  res.json(ListAdminChannelsResponse.parse(channels));
+  res.json(ListAdminChannelsResponse.parse(serializeDates(channels)));
 });
 
 // POST /admin/channels - create (admin)
@@ -123,7 +124,7 @@ router.post("/admin/channels", requireAdmin, async (req, res): Promise<void> => 
     .values({ ...rest, sort_order: finalOrder })
     .returning();
 
-  res.status(201).json(CreateChannelResponse.parse(channel));
+  res.status(201).json(CreateChannelResponse.parse(serializeDates(channel)));
 });
 
 // PATCH /admin/channels/reorder (must be before /:id)
@@ -169,7 +170,7 @@ router.patch("/admin/channels/:id", requireAdmin, async (req, res): Promise<void
     return;
   }
 
-  res.json(UpdateChannelResponse.parse(channel));
+  res.json(UpdateChannelResponse.parse(serializeDates(channel)));
 });
 
 // DELETE /admin/channels/:id - delete (admin)
