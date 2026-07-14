@@ -387,13 +387,13 @@ export default function AdminSources() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               {editingSource ? "تعديل المصدر" : "إضافة مصدر جديد"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto pe-1 -me-1">
             {/* Type selector */}
             <div className="space-y-1.5">
               <Label>نوع المصدر</Label>
@@ -489,7 +489,7 @@ export default function AdminSources() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
               إلغاء
             </Button>
