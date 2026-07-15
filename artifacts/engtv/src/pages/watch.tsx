@@ -231,11 +231,15 @@ export default function WatchPage() {
           {/* Channel Info */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-card rounded-2xl border border-card-border">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-secondary flex items-center justify-center overflow-hidden shrink-0">
-                {channel.logo_url ? (
-                  <img src={channel.logo_url} alt={channel.name} className="w-full h-full object-contain p-2" />
-                ) : (
-                  <span className="text-2xl font-bold text-primary">{channel.name.charAt(0)}</span>
+              <div className="relative w-16 h-16 rounded-xl bg-secondary flex items-center justify-center overflow-hidden shrink-0">
+                <span className="text-2xl font-bold text-primary">{channel.name.charAt(0)}</span>
+                {channel.logo_url && (
+                  <img
+                    src={channel.logo_url}
+                    alt={channel.name}
+                    className="absolute inset-0 w-full h-full object-contain p-2 bg-secondary"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
                 )}
               </div>
               <div>

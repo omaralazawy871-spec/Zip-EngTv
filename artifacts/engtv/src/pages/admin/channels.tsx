@@ -531,18 +531,17 @@ export default function AdminChannels() {
                       />
                     </TableCell>
                     <TableCell>
-                      {ch.logo_url ? (
-                        <img
-                          src={ch.logo_url}
-                          alt={ch.name}
-                          className="w-10 h-10 object-cover rounded"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs">
-                          📺
-                        </div>
-                      )}
+                      <div className="relative w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground text-xs overflow-hidden">
+                        📺
+                        {ch.logo_url && (
+                          <img
+                            src={ch.logo_url}
+                            alt={ch.name}
+                            className="absolute inset-0 w-full h-full object-contain p-1 bg-muted"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium max-w-[180px] truncate">{ch.name}</TableCell>
                     <TableCell>

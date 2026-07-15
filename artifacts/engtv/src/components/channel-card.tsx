@@ -32,18 +32,16 @@ export function ChannelCard({ channel }: ChannelCardProps) {
           <Heart className={cn("w-4 h-4", isFav && "fill-current")} />
         </button>
 
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex items-center justify-center bg-secondary/50 mb-4 shadow-inner">
-          {channel.logo_url ? (
-            <img 
-              src={channel.logo_url} 
-              alt={channel.name} 
-              className="w-full h-full object-contain p-2"
+        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
+          {channel.name.charAt(0)}
+          {channel.logo_url && (
+            <img
+              src={channel.logo_url}
+              alt={channel.name}
+              className="absolute inset-0 w-full h-full object-contain p-2 bg-secondary/50"
               loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-          ) : (
-            <div className="w-full h-full bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold">
-              {channel.name.charAt(0)}
-            </div>
           )}
         </div>
         
