@@ -48,6 +48,13 @@ description: Express/Drizzle/PostgreSQL API + React/Vite RTL Arabic viewer; alwa
 - Dashboard: shows healthy_channels + broken_channels stat cards
 - Watch page: HLS.js tuned for low latency (liveSyncDuration=3, liveMaxLatencyDuration=10, lowLatencyMode=true, stall watchdog at 8s)
 
+## HLS.js config (v1.6.x)
+- MUST use duration-based OR count-based live-sync options — never mix them
+  - Duration-based: `liveSyncDuration` + `liveMaxLatencyDuration`
+  - Count-based: `liveSyncDurationCount` + `liveMaxLatencyDurationCount` (defaults)
+  - Mixing them throws "Illegal hls.js config" at runtime and prevents any playback
+- Timeout options use `TimeOut` (capital T, capital O): `fragLoadingTimeOut`, `manifestLoadingTimeOut`, `levelLoadingTimeOut`
+
 ## TypeScript quirk
 - TanStack Query v5 `UseQueryOptions` requires `queryKey` in the type but Orval-generated hooks add it internally
 - Workaround: cast `{ enabled: ... }` as `any` when passing to generated hooks

@@ -52,34 +52,34 @@ export default function WatchPage() {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
-        // Live-edge tuning — stay as close to live as possible
-        liveMaxLatencyDuration: 10,       // max 10s behind live edge
+        // Live-edge tuning — duration-based only (do NOT mix with DurationCount
+        // variants; HLS.js 1.x throws if both families are present)
         liveSyncDuration: 3,              // target 3s behind live edge
-        liveMaxLatencyDurationCount: 3,   // expressed in segments
+        liveMaxLatencyDuration: 10,       // max 10s behind live edge
         maxLiveSyncPlaybackRate: 1.5,     // catch up at 1.5x when falling behind
 
         // Buffering
         maxBufferLength: 30,              // keep up to 30s forward buffer
-        maxBufferSize: 60 * 1000 * 1000, // 60MB buffer cap
+        maxBufferSize: 60 * 1000 * 1000, // 60 MB buffer cap
         backBufferLength: 8,              // keep 8s backward for seek
         highBufferWatchdogPeriod: 3,      // watchdog fires after 3s of high-buffer stall
 
-        // Network
+        // Network timeouts & retries
         fragLoadingTimeOut: 10000,        // 10s per segment fetch
         manifestLoadingTimeOut: 10000,    // 10s manifest load
         levelLoadingTimeOut: 10000,
-        fragLoadingMaxRetry: 6,           // retry segments 6 times
+        fragLoadingMaxRetry: 6,
         manifestLoadingMaxRetry: 4,
         levelLoadingMaxRetry: 4,
         fragLoadingRetryDelay: 500,
         fragLoadingMaxRetryTimeout: 4000,
 
-        // Quality selection: always prefer highest quality
+        // Quality & startup
         startLevel: -1,                   // auto quality on start
         autoStartLoad: true,
         enableWorker: true,
 
-        // Low-latency mode (useful for LL-HLS streams)
+        // Low-latency mode (LL-HLS streams)
         lowLatencyMode: true,
       });
 
