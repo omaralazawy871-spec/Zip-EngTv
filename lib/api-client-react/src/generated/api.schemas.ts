@@ -214,6 +214,7 @@ export const SourceFilterLanguage = {
   all: 'all',
   arabic: 'arabic',
   english: 'english',
+  arabic_english: 'arabic_english',
 } as const;
 
 export interface Source {
@@ -270,6 +271,7 @@ export const SourceInputFilterLanguage = {
   all: 'all',
   arabic: 'arabic',
   english: 'english',
+  arabic_english: 'arabic_english',
 } as const;
 
 export interface SourceInput {
@@ -316,6 +318,7 @@ export const SourceUpdateFilterLanguage = {
   all: 'all',
   arabic: 'arabic',
   english: 'english',
+  arabic_english: 'arabic_english',
 } as const;
 
 export interface SourceUpdate {

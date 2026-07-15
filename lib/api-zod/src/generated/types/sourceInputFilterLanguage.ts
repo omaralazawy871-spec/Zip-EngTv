@@ -13,4 +13,5 @@ export const SourceInputFilterLanguage = {
   all: 'all',
   arabic: 'arabic',
   english: 'english',
+  arabic_english: 'arabic_english',
 } as const;

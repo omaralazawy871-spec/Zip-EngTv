@@ -27,6 +27,7 @@ function matchesLanguageFilter(lang: string, filter: string): boolean {
   if (filter === "all") return true;
   if (filter === "arabic") return lang === "ar";
   if (filter === "english") return lang === "en";
+  if (filter === "arabic_english") return lang === "ar" || lang === "en";
   return true;
 }
 
@@ -193,15 +194,107 @@ async function fetchXtream(
   return { entries, categories };
 }
 
+// ─── Standard category auto-detection ────────────────────────────────────
+
+interface StandardCategory {
+  name: string;   // Arabic display name used in DB
+  icon: string;
+  patterns: RegExp[];
+}
+
+const STANDARD_CATEGORIES: StandardCategory[] = [
+  {
+    name: "رياضة",
+    icon: "⚽",
+    patterns: [
+      /\bsport/i, /\bfootball\b/i, /\bsoccer\b/i, /\bbasketball\b/i,
+      /\btennis\b/i, /\bcricket\b/i, /\bbeIN\b/i, /\bleague\b/i,
+      /\bchampion/i, /\bworldcup\b/i, /رياض/, /كرة/, /كأس/, /دوري/,
+    ],
+  },
+  {
+    name: "أفلام",
+    icon: "🎬",
+    patterns: [
+      /\bmovie/i, /\bfilm/i, /\bcinema\b/i, /\bflix\b/i,
+      /أفلام/, /سينما/, /\bفيلم\b/,
+    ],
+  },
+  {
+    name: "مسلسلات",
+    icon: "📺",
+    patterns: [
+      /\bseries\b/i, /\bdrama\b/i, /\bepisode/i,
+      /مسلسل/, /دراما/, /\bserial\b/i,
+    ],
+  },
+  {
+    name: "أخبار",
+    icon: "📰",
+    patterns: [
+      /\bnews\b/i, /\bcnn\b/i, /\bbbc\b/i, /\bal.?jazeera\b/i,
+      /\beuronews\b/i, /\bnewsy\b/i, /أخبار/, /اخبار/, /الجزيرة/,
+      /العربية/, /نشرة/, /\bbreaking\b/i,
+    ],
+  },
+  {
+    name: "أطفال",
+    icon: "👶",
+    patterns: [
+      /\bkid/i, /\bchild/i, /\bcartoon/i, /\bbaby\b/i,
+      /\btoyor\b/i, /\banimat/i, /أطفال/, /اطفال/, /كرتون/, /طيور/,
+    ],
+  },
+  {
+    name: "قرآن",
+    icon: "🕌",
+    patterns: [
+      /\bquran\b/i, /\bquran\b/i, /\bislamic\b/i, /\bmuslim\b/i,
+      /قرآن/, /قران/, /إسلام/, /اسلام/, /ديني/, /مسجد/,
+    ],
+  },
+];
+
+// Map from standard category name → StandardCategory for quick lookup
+const STANDARD_CATEGORY_BY_NAME = new Map(
+  STANDARD_CATEGORIES.map((c) => [c.name, c])
+);
+
+/**
+ * Tries to map a channel (by name + group) into one of the six standard
+ * categories.  Returns the matching StandardCategory or null when the
+ * channel doesn't clearly belong to any of them.
+ */
+function detectStandardCategory(name: string, group?: string): StandardCategory | null {
+  const haystack = `${name} ${group ?? ""}`;
+  for (const cat of STANDARD_CATEGORIES) {
+    if (cat.patterns.some((p) => p.test(haystack))) return cat;
+  }
+  return null;
+}
+
 // ─── Category helpers ──────────────────────────────────────────────────────
 
-async function getOrCreateCategory(name: string, nextSortOrder: number): Promise<number> {
+async function getOrCreateCategory(
+  name: string,
+  nextSortOrder: number,
+  icon?: string
+): Promise<number> {
   const existing = await db.select().from(categoriesTable).where(eq(categoriesTable.name, name));
-  if (existing.length > 0) return existing[0].id;
+  if (existing.length > 0) {
+    // Back-fill icon if the row was created before icons were added
+    if (icon && !existing[0].icon) {
+      await db
+        .update(categoriesTable)
+        .set({ icon })
+        .where(eq(categoriesTable.id, existing[0].id));
+    }
+    return existing[0].id;
+  }
 
   const [created] = await db
     .insert(categoriesTable)
-    .values({ name, sort_order: nextSortOrder, is_visible: true })
+    .values({ name, icon: icon ?? null, sort_order: nextSortOrder, is_visible: true })
     .returning();
   return created.id;
 }
@@ -282,6 +375,7 @@ export async function syncSource(source: Source, retrying = false): Promise<Sync
     const filterCategories = parseCommaSeparated(source.filter_categories);
 
     entries = entries.filter((entry) => {
+
       // Determine language: prefer tvg-language tag, fallback to detection
       let lang: "ar" | "en" | "unknown" = "unknown";
       if (entry.tvgLanguage) {
@@ -302,6 +396,18 @@ export async function syncSource(source: Source, retrying = false): Promise<Sync
       return true;
     });
 
+    // ── Auto-categorize: map channels into standard categories ─────────────
+    // When a channel's name or group clearly matches a well-known category
+    // (Sports, Movies, Series, News, Kids, Quran) we override the group so
+    // that all matching channels converge on the same category row and avoid
+    // dozens of near-duplicate groups ("bein sports 1", "bein sports 2"…).
+    for (const entry of entries) {
+      const standard = detectStandardCategory(entry.name, entry.group);
+      if (standard) {
+        entry.group = standard.name;
+      }
+    }
+
     // ── Upsert categories ──────────────────────────────────────────────────
     const categoryCache = new Map<string, number>();
     let categoriesCreated = 0;
@@ -316,7 +422,9 @@ export async function syncSource(source: Source, retrying = false): Promise<Sync
         .where(eq(categoriesTable.name, groupName));
       const wasNew = existingBefore.length === 0;
 
-      const catId = await getOrCreateCategory(groupName, nextCategorySortOrder);
+      // Pass along the icon for standard categories so it's stored on creation
+      const catIcon = STANDARD_CATEGORY_BY_NAME.get(groupName)?.icon;
+      const catId = await getOrCreateCategory(groupName, nextCategorySortOrder, catIcon);
       categoryCache.set(groupName, catId);
 
       if (wasNew) {

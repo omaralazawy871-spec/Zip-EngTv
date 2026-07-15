@@ -59,7 +59,7 @@ interface SourceForm {
   username: string;
   password: string;
   // Filters
-  filter_language: "all" | "arabic" | "english";
+  filter_language: "all" | "arabic" | "english" | "arabic_english";
   filter_countries: string;
   filter_categories: string;
   // Scheduler
@@ -134,7 +134,7 @@ export default function AdminSources() {
       server_url: src.server_url ?? "",
       username: src.username ?? "",
       password: src.password ?? "",
-      filter_language: (src.filter_language as "all" | "arabic" | "english") ?? "all",
+      filter_language: (src.filter_language as "all" | "arabic" | "english" | "arabic_english") ?? "all",
       filter_countries: src.filter_countries ?? "",
       filter_categories: src.filter_categories ?? "",
       sync_interval_hours: src.sync_interval_hours ?? 0,
@@ -347,7 +347,11 @@ export default function AdminSources() {
                         {/* Filter tags */}
                         {src.filter_language !== "all" && (
                           <Badge variant="outline" className="text-xs">
-                            {src.filter_language === "arabic" ? "🇸🇦 عربي" : "🇺🇸 إنجليزي"}
+                            {src.filter_language === "arabic"
+                              ? "🇸🇦 عربي"
+                              : src.filter_language === "english"
+                              ? "🇺🇸 إنجليزي"
+                              : "🇸🇦🇺🇸 عربي+إنجليزي"}
                           </Badge>
                         )}
                         {src.sync_interval_hours > 0 && (
@@ -556,13 +560,14 @@ export default function AdminSources() {
                   <Label>اللغة</Label>
                   <Select
                     value={form.filter_language}
-                    onValueChange={(v) => setForm((f) => ({ ...f, filter_language: v as "all" | "arabic" | "english" }))}
+                    onValueChange={(v) => setForm((f) => ({ ...f, filter_language: v as "all" | "arabic" | "english" | "arabic_english" }))}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">كل اللغات</SelectItem>
                       <SelectItem value="arabic">🇸🇦 عربي فقط</SelectItem>
                       <SelectItem value="english">🇺🇸 إنجليزي فقط</SelectItem>
+                      <SelectItem value="arabic_english">🇸🇦🇺🇸 عربي + إنجليزي</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
