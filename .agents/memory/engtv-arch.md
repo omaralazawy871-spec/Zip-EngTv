@@ -16,6 +16,10 @@ description: Express/Drizzle/PostgreSQL API + React/Vite RTL Arabic viewer; alwa
 
 ## Sync Engine (`lib/sync-engine.ts`)
 - M3U + Xtream Codes sync with O(1) map-based upsert
+- **Xtream URL format**: `${base}/live/${encodeURIComponent(user)}/${encodeURIComponent(pass)}/${stream_id}.m3u8` — MUST end in `.m3u8`; without it servers return raw MPEG-TS which HLS.js cannot play
+- **Xtream category_id**: normalise to `String()` on both map key and lookup — API sometimes returns integer, sometimes string
+- Logo: only stored if `stream_icon` starts with `http`; empty string treated as absent
+- Malformed Xtream entries (no stream_id or empty name) filtered before insert
 - Per-source filters: `filter_language` ('all'|'arabic'|'english'), `filter_countries` (comma-sep ISO codes), `filter_categories` (comma-sep name patterns)
 - Dead channel detection: channels not seen in a sync → set is_active=false, is_healthy=false
 - Auto-retry once on HTTP errors (5s delay)
@@ -23,8 +27,9 @@ description: Express/Drizzle/PostgreSQL API + React/Vite RTL Arabic viewer; alwa
 - Sets `next_sync_at` after successful sync if `sync_interval_hours > 0`
 
 ## Health Checker (`lib/health-checker.ts`)
-- HEAD (or GET for .m3u8) check per stream URL, 8s timeout
-- Batch concurrency (default 10, max 30)
+- Always GET (not HEAD — many Xtream servers return 405); no Range header (live streams return 416)
+- Body cancelled immediately after status code received
+- 8s timeout, batch concurrency default 10 / max 30
 - Updates `is_healthy`, `health_error`, `last_checked_at` in DB
 
 ## API Routes

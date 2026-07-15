@@ -153,15 +153,42 @@ async function fetchXtream(
   const categories: XtreamCategory[] = await catRes.json();
   const streams: XtreamStream[] = await streamRes.json();
 
-  const catMap = new Map(categories.map((c) => [c.category_id, c.category_name]));
+  // Normalise category_id to string — Xtream servers sometimes return it as
+  // an integer in JSON, which would cause Map lookups to silently miss when
+  // comparing against string keys.
+  const catMap = new Map(categories.map((c) => [String(c.category_id), c.category_name]));
 
-  const entries: M3UEntry[] = streams.map((s) => ({
-    name: s.name,
-    logo: s.stream_icon || undefined,
-    group: s.category_id ? catMap.get(s.category_id) : undefined,
-    url: `${base}/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${s.stream_id}`,
-    tvgId: String(s.stream_id),
-  }));
+  // Filter out malformed stream entries before mapping
+  const validStreams = streams.filter(
+    (s) => s.stream_id && s.name && String(s.name).trim()
+  );
+
+  const entries: M3UEntry[] = validStreams.map((s) => {
+    // Prefer direct_source when provided; otherwise build the standard Xtream
+    // HLS URL.  The URL MUST end in .m3u8 so the server returns an HLS
+    // manifest — without the extension most Xtream servers send raw MPEG-TS
+    // which HLS.js cannot play.
+    const streamUrl =
+      (s.direct_source && s.direct_source.startsWith("http"))
+        ? s.direct_source
+        : `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${s.stream_id}.m3u8`;
+
+    // stream_icon is a full URL or an empty string — treat empty as absent
+    const logo = s.stream_icon && s.stream_icon.startsWith("http")
+      ? s.stream_icon
+      : undefined;
+
+    // Normalise category_id to string for the lookup (mirrors catMap key above)
+    const catKey = s.category_id != null ? String(s.category_id) : null;
+
+    return {
+      name: s.name,
+      logo,
+      group: catKey ? catMap.get(catKey) : undefined,
+      url: streamUrl,
+      tvgId: String(s.stream_id),
+    };
+  });
 
   return { entries, categories };
 }

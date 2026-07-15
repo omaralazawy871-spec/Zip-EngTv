@@ -17,18 +17,20 @@ async function checkStreamUrl(url: string): Promise<{ healthy: boolean; error: s
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    // For HLS streams (.m3u8) do a GET to see the manifest; for others HEAD is enough
-    const method = url.toLowerCase().includes(".m3u8") ? "GET" : "HEAD";
-
+    // Always use GET — HEAD is unreliable on live-stream endpoints (many
+    // Xtream / HLS servers return 404 or 405 for HEAD even when the stream
+    // is healthy).  Do NOT send a Range header; live streams don't support
+    // range requests and servers often return 416 for them.
     const response = await fetch(url, {
-      method,
+      method: "GET",
       signal: controller.signal,
       headers: {
         "User-Agent": "EngTv/1.0 (health-check)",
-        Range: "bytes=0-0", // Minimal data for non-manifest checks
       },
     });
 
+    // Abort the body immediately — we only care about the status code.
+    response.body?.cancel().catch(() => {});
     clearTimeout(timer);
 
     if (response.status >= 200 && response.status < 400) {
