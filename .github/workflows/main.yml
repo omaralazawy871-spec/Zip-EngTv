@@ -14,11 +14,12 @@ on:
 env:
   NODE_VERSION: '22'
   JAVA_VERSION: '17'
-  PNPM_CACHE_PATH: ~/.local/share/pnpm/store
-  APK_VERSION: ${{ github.ref_name }}
 
 jobs:
-  # ── 1. Quality & Tests ──────────────────────────────────────────────────────
+
+  # ─────────────────────────────────────────────
+  # 1. Quality & Tests
+  # ─────────────────────────────────────────────
   quality:
     runs-on: ubuntu-latest
 
@@ -29,11 +30,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -59,23 +60,27 @@ jobs:
       - name: Frontend production build
         run: pnpm --filter @workspace/engtv build
 
-  # ── 2. Backend Build ───────────────────────────────────────────────────────
+
+  # ─────────────────────────────────────────────
+  # 2. Backend Build
+  # ─────────────────────────────────────────────
   build-backend:
     runs-on: ubuntu-latest
     needs: quality
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -90,36 +95,31 @@ jobs:
           path: artifacts/api-server/dist/
           retention-days: 7
 
-  # ── 3. Android Build ───────────────────────────────────────────────────────
+
+
+  # ─────────────────────────────────────────────
+  # 3. Android Build
+  # ─────────────────────────────────────────────
   build-android:
     runs-on: ubuntu-latest
     needs: quality
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
+
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: temurin
+
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Create local.properties for CI
-        working-directory: android
-        run: |
-          echo 'API_BASE_URL=${{ secrets.API_BASE_URL || 'https://your-backend.replit.app/api/' }}' > local.properties
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -132,23 +132,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+
+      - name: Create local.properties
+        working-directory: android
+        run: |
+          echo "API_BASE_URL=${{ secrets.API_BASE_URL || 'https://your-backend.replit.app/api/' }}" > local.properties
+
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Run Android lint
+
+      - name: Android lint
         working-directory: android
         run: ./gradlew lint --stacktrace
 
-      - name: Build Debug APK
-        run: cd android && ./gradlew assembleDebug --stacktrace
-        env:
-          CI: true
 
-      - name: Build Release APK (if signing secrets available)
-        if: ${{ secrets.STORE_FILE && secrets.STORE_PASSWORD && secrets.KEY_ALIAS && secrets.KEY_PASSWORD }}
-        run: cd android && ./gradlew assembleRelease --stacktrace
-        env:
-          CI: true
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -157,27 +160,24 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-      - name: Upload Release APK
-        if: ${{ secrets.STORE_FILE && secrets.STORE_PASSWORD && secrets.KEY_ALIAS && secrets.KEY_PASSWORD }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: EngTv-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
-          retention-days: 90
 
-      - name: Cache Gradle cleanup
-        if: always()
-        run: rm -rf ~/.gradle/caches/modules-2/modules-2.lock
 
-  # ── 4. Release (on tags only) ──────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # 4. Release Build (Tags Only)
+  # ─────────────────────────────────────────────
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    needs: [build-backend, build-android]
+
+    needs:
+      - build-backend
+      - build-android
+
 
     steps:
-      - name: Checkout repository
+- name: Checkout repository
         uses: actions/checkout@v4
+
 
       - name: Download backend build
         uses: actions/download-artifact@v4
@@ -185,32 +185,25 @@ jobs:
           name: api-server-build
           path: dist/
 
-      - name: Download release APK
+
+      - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: EngTv-release-apk
+          name: EngTv-debug-apk
           path: apk/
 
-      - name: Generate APK checksum
+
+      - name: Generate checksum
         run: |
           sha256sum apk/*.apk > apk/checksums.txt
-          cat apk/checksums.txt
 
-      - name: Generate release notes
-        run: |
-          echo "## What's Changed" > RELEASE_NOTES.md
-          git log $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --oneline --format="* %s" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-          echo "### Checksums" >> RELEASE_NOTES.md
-          cat apk/checksums.txt >> RELEASE_NOTES.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: EngTv ${{ github.ref_name }}
-          body_path: RELEASE_NOTES.md
           files: |
             apk/*.apk
-            dist/**/*
+            dist/*
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}
+          prerelease: true
