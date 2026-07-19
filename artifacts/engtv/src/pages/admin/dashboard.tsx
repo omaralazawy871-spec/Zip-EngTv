@@ -1,71 +1,64 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { useGetAdminStats } from "@workspace/api-client-react";
-import { Tv, FolderTree, PlayCircle, Radio, HeartPulse, XCircle, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Tv, FolderTree, PlayCircle, Radio, HeartPulse, XCircle } from "lucide-react";
 import { Link } from "wouter";
+import { StatsSkeleton } from "@/components/admin/table-skeleton";
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = useGetAdminStats();
-
-  if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </AdminLayout>
-    );
-  }
+  const { t } = useTranslation();
 
   const statCards = [
     {
-      label: "إجمالي القنوات",
+      label: t('dashboard.total_channels'),
       value: stats?.total_channels ?? 0,
-      sub: `${stats?.active_channels ?? 0} نشط`,
+      sub: `${stats?.active_channels ?? 0} ${t('dashboard.active')}`,
       icon: Tv,
       color: "text-blue-400",
       bg: "bg-blue-500/10",
       href: "/admin/channels",
     },
     {
-      label: "التصنيفات",
+      label: t('dashboard.categories'),
       value: stats?.total_categories ?? 0,
-      sub: "تصنيف",
+      sub: t('dashboard.category'),
       icon: FolderTree,
       color: "text-orange-400",
       bg: "bg-orange-500/10",
       href: "/admin/categories",
     },
     {
-      label: "مصادر IPTV",
+      label: t('dashboard.sources'),
       value: stats?.total_sources ?? 0,
-      sub: `${stats?.active_sources ?? 0} نشط`,
+      sub: `${stats?.active_sources ?? 0} ${t('dashboard.active')}`,
       icon: Radio,
       color: "text-purple-400",
       bg: "bg-purple-500/10",
       href: "/admin/sources",
     },
     {
-      label: "القنوات النشطة",
+      label: t('dashboard.active_channels'),
       value: stats?.active_channels ?? 0,
-      sub: `من ${stats?.total_channels ?? 0}`,
+      sub: `${t('dashboard.of')} ${stats?.total_channels ?? 0}`,
       icon: PlayCircle,
       color: "text-green-400",
       bg: "bg-green-500/10",
       href: "/admin/channels",
     },
     {
-      label: "قنوات تعمل",
+      label: t('dashboard.healthy_channels'),
       value: stats?.healthy_channels ?? 0,
-      sub: "تم فحصها",
+      sub: t('dashboard.checked'),
       icon: HeartPulse,
       color: "text-emerald-400",
       bg: "bg-emerald-500/10",
       href: "/admin/channels",
     },
     {
-      label: "قنوات معطلة",
+      label: t('dashboard.broken_channels'),
       value: stats?.broken_channels ?? 0,
-      sub: "تحتاج مراجعة",
+      sub: t('dashboard.needs_review'),
       icon: XCircle,
       color: "text-destructive",
       bg: "bg-destructive/10",
@@ -77,17 +70,20 @@ export default function AdminDashboard() {
     <AdminLayout>
       <div className="space-y-8 animate-in fade-in pb-12">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">لوحة القيادة</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
           <p className="text-muted-foreground mt-2">
-            نظرة عامة على منصة البث الخاصة بك.
+            {t('dashboard.subtitle')}
             {stats?.last_sync_at && (
               <span className="ms-2 text-xs text-primary">
-                آخر مزامنة: {new Date(stats.last_sync_at).toLocaleString("ar")}
+                {t('dashboard.last_sync')}: {new Date(stats.last_sync_at).toLocaleString("ar")}
               </span>
             )}
           </p>
         </div>
 
+        {isLoading ? (
+          <StatsSkeleton />
+        ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {statCards.map((stat) => {
             const Icon = stat.icon;
@@ -107,24 +103,25 @@ export default function AdminDashboard() {
             );
           })}
         </div>
+        )}
 
         {/* Quick links */}
         <div className="bg-card border border-card-border rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold mb-4">إجراءات سريعة</h2>
+          <h2 className="text-lg font-bold mb-4">{t('dashboard.quick_actions')}</h2>
           <div className="flex flex-wrap gap-3">
             <Link href="/admin/sources">
               <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                + إضافة مصدر IPTV
+                + {t('dashboard.add_source')}
               </button>
             </Link>
             <Link href="/admin/channels">
               <button className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                + إضافة قناة يدوياً
+                + {t('dashboard.add_channel')}
               </button>
             </Link>
             <Link href="/admin/categories">
               <button className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                + إضافة تصنيف
+                + {t('dashboard.add_category')}
               </button>
             </Link>
           </div>

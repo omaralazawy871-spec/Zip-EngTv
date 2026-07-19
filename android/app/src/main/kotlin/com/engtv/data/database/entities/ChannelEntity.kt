@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.engtv.data.models.Channel
+import kotlinx.serialization.Serializable
 
 /**
  * Room entity for caching channel data locally.
@@ -11,6 +12,7 @@ import com.engtv.data.models.Channel
  * Note: streamUrl is cached here for offline access but always originates
  * from the server API — it is never hardcoded in the application source.
  */
+@Serializable
 @Entity(tableName = "channels")
 data class ChannelEntity(
     @PrimaryKey val id: Int,

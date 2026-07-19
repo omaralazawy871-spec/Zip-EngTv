@@ -1,5 +1,17 @@
 import java.util.Properties
 
+// Auto-generate local.properties from template if missing
+val localPropertiesFile = rootProject.file("local.properties")
+if (!localPropertiesFile.exists()) {
+    val templateFile = rootProject.file("local.properties.template")
+    if (templateFile.exists()) {
+        logger.warn("local.properties not found. Copying from local.properties.template — fill in the values and rebuild.")
+        templateFile.copyTo(localPropertiesFile)
+    } else {
+        logger.warn("local.properties.template not found either. Create local.properties manually.")
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +19,9 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    // Uncomment for Firebase Crashlytics:
+    // alias(libs.plugins.google.services)
+    // alias(libs.plugins.firebase.crashlytics)
 }
 
 // Read local.properties (API URL, signing config) — never hardcode these values in source
@@ -123,10 +138,14 @@ dependencies {
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.room.paging)
     ksp(libs.room.compiler)
 
     // DataStore
     implementation(libs.datastore.preferences)
+
+    // Security
+    implementation(libs.security.crypto)
 
     // Media3 / ExoPlayer
     implementation(libs.media3.exoplayer)
@@ -143,6 +162,29 @@ dependencies {
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Paging 3
+    implementation(libs.paging.runtime)
+    implementation(libs.paging.compose)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+
     // Coil (image loading)
     implementation(libs.coil.compose)
+
+    // Uncomment for Firebase Crashlytics (requires google-services.json in app/):
+    // implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
+    // implementation("com.google.firebase:firebase-crashlytics-ktx")
+
+    // Unit tests
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Instrumentation tests
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

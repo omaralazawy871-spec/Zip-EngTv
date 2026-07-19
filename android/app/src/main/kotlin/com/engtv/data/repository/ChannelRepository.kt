@@ -1,5 +1,9 @@
 package com.engtv.data.repository
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import com.engtv.data.api.EngTvApi
 import com.engtv.data.database.dao.ChannelDao
 import com.engtv.data.database.dao.FavoriteDao
@@ -27,6 +31,14 @@ class ChannelRepository @Inject constructor(
     /** Observe cached channels; call [refresh] to pull from server. */
     fun observeChannels(): Flow<List<Channel>> =
         channelDao.observeAll().map { list -> list.map { it.toModel() } }
+
+    /** Paged channels from local cache. */
+    fun getPagedChannels(): Flow<PagingData<Channel>> =
+        Pager(config = PagingConfig(pageSize = 20)) {
+            channelDao.pagingSource()
+        }.flow.map { pagingData ->
+            pagingData.map { it.toModel() }
+        }
 
     fun observeByCategory(categoryId: Int): Flow<List<Channel>> =
         channelDao.observeByCategory(categoryId).map { list -> list.map { it.toModel() } }

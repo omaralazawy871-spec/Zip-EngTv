@@ -1,5 +1,6 @@
 package com.engtv.data.database.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -19,6 +20,9 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE name LIKE '%' || :query || '%' ORDER BY sort_order ASC")
     fun search(query: String): Flow<List<ChannelEntity>>
 
+    @Query("SELECT * FROM channels ORDER BY sort_order ASC")
+    fun pagingSource(): PagingSource<Int, ChannelEntity>
+
     @Query("SELECT * FROM channels WHERE id = :id")
     suspend fun getById(id: Int): ChannelEntity?
 
@@ -27,6 +31,9 @@ interface ChannelDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(channel: ChannelEntity)
+
+    @Query("SELECT * FROM channels ORDER BY sort_order ASC")
+    suspend fun getAll(): List<ChannelEntity>
 
     @Query("DELETE FROM channels")
     suspend fun deleteAll()

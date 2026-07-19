@@ -122,9 +122,12 @@ router.patch("/admin/categories/:id", requireAdmin, async (req, res): Promise<vo
     return;
   }
 
+  const updateData = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, v]) => v !== null),
+  );
   const [category] = await db
     .update(categoriesTable)
-    .set(parsed.data)
+    .set(updateData)
     .where(eq(categoriesTable.id, params.data.id))
     .returning();
 

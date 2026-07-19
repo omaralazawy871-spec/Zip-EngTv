@@ -1,11 +1,16 @@
 package com.engtv.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.animateItemPlacement
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -16,15 +21,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import com.engtv.data.database.entities.WatchHistoryEntity
 import com.engtv.data.models.Category
 import com.engtv.data.models.Channel
+import com.engtv.ui.components.ChannelCard
+import com.engtv.ui.components.HomeShimmer
 import com.engtv.ui.theme.*
 
 @Composable
@@ -34,7 +44,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState  by viewModel.uiState.collectAsStateWithLifecycle()
-    val channels  by viewModel.channels.collectAsStateWithLifecycle()
+    val pagedChannels = viewModel.pagedChannels.collectAsLazyPagingItems()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val history   by viewModel.watchHistory.collectAsStateWithLifecycle()
 
@@ -43,142 +53,163 @@ fun HomeScreen(
             .fillMaxSize()
             .background(Background),
     ) {
-        when {
-            uiState.isLoading && channels.isEmpty() -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Primary,
-                )
-            }
+        AnimatedVisibility(
+            visible = uiState.isLoading && pagedChannels.itemCount == 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            HomeShimmer(modifier = Modifier.fillMaxSize())
+        }
 
-            uiState.error != null && channels.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+        AnimatedVisibility(
+            visible = uiState.error != null && pagedChannels.itemCount == 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "تعذّر تحميل القنوات",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = OnSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = uiState.error ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = viewModel::refresh,
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
                 ) {
-                    Text(
-                        text = "تعذّر تحميل القنوات",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = uiState.error ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    Button(
-                        onClick = viewModel::refresh,
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    ) {
-                        Text("إعادة المحاولة")
-                    }
+                    Text("إعادة المحاولة")
                 }
             }
+        }
 
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 88.dp),
-                ) {
+        AnimatedVisibility(
+            visible = !uiState.isLoading || pagedChannels.itemCount > 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp),
+            ) {
 
-                    // ── Resume Last Channel ───────────────────────────────
-                    // Shown only when there is watch history.
-                    // Displays the most recently watched channel as a
-                    // prominent resume card so the user can jump back in.
-                    if (history.isNotEmpty()) {
-                        item {
-                            val last = history.first()
-                            SectionTitle("استأنف المشاهدة")
-                            ResumeCard(entry = last, onClick = { onChannelClick(last.channelId) })
-                            Spacer(Modifier.height(8.dp))
-                        }
-
-                        // Secondary: show the rest of the history as a horizontal strip
-                        if (history.size > 1) {
-                            item {
-                                SectionTitle("شاهدت مؤخراً")
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    items(history.drop(1)) { entry ->
-                                        ChannelCard(
-                                            name    = entry.channelName,
-                                            logoUrl = entry.logoUrl,
-                                            onClick = { onChannelClick(entry.channelId) },
-                                            modifier = Modifier.width(120.dp),
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.height(24.dp))
-                            }
-                        }
+                if (history.isNotEmpty()) {
+                    item {
+                        val last = history.first()
+                        SectionTitle("استأنف المشاهدة")
+                        ResumeCard(entry = last, onClick = { onChannelClick(last.channelId) })
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    // ── Categories ────────────────────────────────────────
-                    if (categories.isNotEmpty()) {
+                    if (history.size > 1) {
                         item {
-                            SectionTitle("الفئات")
+                            SectionTitle("شاهدت مؤخراً")
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                items(categories) { cat ->
-                                    CategoryChip(cat, onClick = { onCategoryClick(cat.id) })
+                                items(history.drop(1), key = { it.channelId }) { entry ->
+                                    ChannelCard(
+                                        name    = entry.channelName,
+                                        logoUrl = entry.logoUrl,
+                                        onClick = { onChannelClick(entry.channelId) },
+                                        modifier = Modifier
+                                            .width(120.dp)
+                                            .animateItemPlacement(),
+                                    )
                                 }
                             }
                             Spacer(Modifier.height(24.dp))
                         }
                     }
+                }
 
-                    // ── All Channels ──────────────────────────────────────
-                    item { SectionTitle("جميع القنوات") }
-
-                    if (channels.isEmpty()) {
-                        item {
-                            Text(
-                                text = "لا توجد قنوات متاحة حالياً.\nأضف مصدر IPTV من لوحة التحكم.",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                textAlign = TextAlign.Center,
-                                color = OnSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
+                if (categories.isNotEmpty()) {
+                    item {
+                        SectionTitle("الفئات")
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(categories, key = { it.id }) { cat ->
+                                CategoryChip(cat, onClick = { onCategoryClick(cat.id) })
+                            }
                         }
-                    } else {
-                        items(channels.chunked(2)) { row ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                row.forEach { channel ->
+                        Spacer(Modifier.height(24.dp))
+                    }
+                }
+
+                item { SectionTitle("جميع القنوات") }
+
+                if (pagedChannels.itemCount == 0 && !uiState.isLoading) {
+                    item {
+                        Text(
+                            text = "لا توجد قنوات متاحة حالياً.\nأضف مصدر IPTV من لوحة التحكم.",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            textAlign = TextAlign.Center,
+                            color = OnSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                } else {
+                    itemsIndexed(
+                        count = (pagedChannels.itemCount + 1) / 2,
+                        key = { rowIndex -> "channel_row_$rowIndex" },
+                    ) { rowIndex, _ ->
+                        val first = rowIndex * 2
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .animateItemPlacement(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            val ch0 = pagedChannels[first]
+                            if (ch0 != null) {
+                                ChannelCard(
+                                    name    = ch0.name,
+                                    logoUrl = ch0.logoUrl,
+                                    onClick = { onChannelClick(ch0.id) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            val second = first + 1
+                            if (second < pagedChannels.itemCount) {
+                                val ch1 = pagedChannels[second]
+                                if (ch1 != null) {
                                     ChannelCard(
-                                        name    = channel.name,
-                                        logoUrl = channel.logoUrl,
-                                        onClick = { onChannelClick(channel.id) },
+                                        name    = ch1.name,
+                                        logoUrl = ch1.logoUrl,
+                                        onClick = { onChannelClick(ch1.id) },
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
-                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            } else {
+                                Spacer(Modifier.weight(1f))
                             }
-                            Spacer(Modifier.height(12.dp))
                         }
+                        Spacer(Modifier.height(12.dp))
                     }
                 }
             }
         }
     }
 }
-
-// ── Resume Card ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun ResumeCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
@@ -188,14 +219,14 @@ private fun ResumeCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "استئناف مشاهدة ${entry.channelName}" },
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Channel logo / placeholder
             if (entry.logoUrl != null) {
                 AsyncImage(
                     model = entry.logoUrl,
@@ -217,7 +248,6 @@ private fun ResumeCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
                 }
             }
 
-            // Channel info + play prompt
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -236,7 +266,6 @@ private fun ResumeCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
                 )
             }
 
-            // Play icon
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = "تشغيل",
@@ -246,8 +275,6 @@ private fun ResumeCard(entry: WatchHistoryEntity, onClick: () -> Unit) {
         }
     }
 }
-
-// ── Reusable composables ──────────────────────────────────────────────────────
 
 @Composable
 private fun SectionTitle(title: String) {
@@ -264,7 +291,9 @@ private fun CategoryChip(category: Category, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = SurfaceVariant,
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "فئة: ${category.name}" },
     ) {
         Text(
             text = "${category.icon ?: ""} ${category.name}".trim(),
@@ -272,59 +301,5 @@ private fun CategoryChip(category: Category, onClick: () -> Unit) {
             style = MaterialTheme.typography.labelLarge,
             color = OnSurface,
         )
-    }
-}
-
-/**
- * Reusable channel card used by Home, Search, Favorites, and Category screens.
- * Exported from this file so sibling packages can import it without a shared
- * components module.
- */
-@Composable
-fun ChannelCard(
-    name: String,
-    logoUrl: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = SurfaceVariant,
-        modifier = modifier.clickable(onClick = onClick),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (logoUrl != null) {
-                AsyncImage(
-                    model = logoUrl,
-                    contentDescription = name,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit,
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(SurfaceContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("📺", style = MaterialTheme.typography.headlineMedium)
-                }
-            }
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyMedium,
-                color = OnSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
-        }
     }
 }

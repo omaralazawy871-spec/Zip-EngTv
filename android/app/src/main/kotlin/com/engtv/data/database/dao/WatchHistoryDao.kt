@@ -19,6 +19,9 @@ interface WatchHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: WatchHistoryEntity)
 
+    @Query("SELECT * FROM watch_history ORDER BY last_watched_at DESC")
+    suspend fun getAll(): List<WatchHistoryEntity>
+
     @Query("DELETE FROM watch_history WHERE channel_id = :channelId")
     suspend fun deleteByChannelId(channelId: Int)
 

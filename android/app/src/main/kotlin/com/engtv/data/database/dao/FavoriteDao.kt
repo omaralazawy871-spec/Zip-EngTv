@@ -23,6 +23,12 @@ interface FavoriteDao {
     @Query("DELETE FROM favorites WHERE channel_id = :channelId")
     suspend fun deleteByChannelId(channelId: Int)
 
+    @Query("SELECT * FROM favorites ORDER BY added_at DESC")
+    suspend fun getAll(): List<FavoriteEntity>
+
     @Query("SELECT channel_id FROM favorites ORDER BY added_at DESC")
     suspend fun getAllIds(): List<Int>
+
+    @Query("DELETE FROM favorites")
+    suspend fun deleteAll()
 }

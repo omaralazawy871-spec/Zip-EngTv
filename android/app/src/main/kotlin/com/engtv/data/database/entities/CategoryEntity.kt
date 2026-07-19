@@ -4,7 +4,9 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.engtv.data.models.Category
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = "categories")
 data class CategoryEntity(
     @PrimaryKey val id: Int,

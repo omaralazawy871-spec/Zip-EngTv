@@ -28,6 +28,7 @@
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="fullSensor"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:theme="@style/Theme.EngTv.Starting">
             <intent-filter>

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, index, serial, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 
 export const channelsTable = pgTable("channels", {
   id: serial("id").primaryKey(),
@@ -17,7 +17,14 @@ export const channelsTable = pgTable("channels", {
   last_checked_at: timestamp("last_checked_at"),
   is_healthy: boolean("is_healthy"), // null = unchecked, true = working, false = broken
   health_error: text("health_error"),
-});
+}, (table) => ({
+  categoryIdIdx: index("idx_channels_category_id").on(table.category_id),
+  sourceIdIdx: index("idx_channels_source_id").on(table.source_id),
+  isActiveIdx: index("idx_channels_is_active").on(table.is_active),
+  languageIdx: index("idx_channels_language").on(table.language),
+  externalIdIdx: index("idx_channels_external_id").on(table.external_id),
+  nameIdx: index("idx_channels_name").on(table.name),
+}));
 
 export type Channel = typeof channelsTable.$inferSelect;
 export type InsertChannel = typeof channelsTable.$inferInsert;

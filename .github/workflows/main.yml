@@ -1,46 +1,216 @@
-name: Build EngTv APK
+name: EngTv CI/CD
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '22'
+  JAVA_VERSION: '17'
+  PNPM_CACHE_PATH: ~/.local/share/pnpm/store
+  APK_VERSION: ${{ github.ref_name }}
 
 jobs:
-  build-apk:
+  # ── 1. Quality & Tests ──────────────────────────────────────────────────────
+  quality:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependency vulnerability audit
+        run: pnpm audit --audit-level=high || echo "Vulnerabilities found — review before release"
+
+      - name: Typecheck libs
+        run: pnpm run typecheck:libs
+
+      - name: Backend typecheck
+        run: pnpm --filter @workspace/api-server typecheck
+
+      - name: Backend tests
+        run: pnpm --filter @workspace/api-server test
+
+      - name: Frontend typecheck
+        run: pnpm --filter @workspace/engtv typecheck
+
+      - name: Frontend tests
+        run: pnpm --filter @workspace/engtv test
+
+      - name: Frontend production build
+        run: pnpm --filter @workspace/engtv build
+
+  # ── 2. Backend Build ───────────────────────────────────────────────────────
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build backend
+        run: pnpm --filter @workspace/api-server build
+
+      - name: Upload backend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-server-build
+          path: artifacts/api-server/dist/
+          retention-days: 7
+
+  # ── 3. Android Build ───────────────────────────────────────────────────────
+  build-android:
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Verify Android files
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Create local.properties for CI
+        working-directory: android
         run: |
-          cd android
-          ls -la
-          ls -la gradle/wrapper
+          echo 'API_BASE_URL=${{ secrets.API_BASE_URL || 'https://your-backend.replit.app/api/' }}' > local.properties
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Make gradlew executable
-        run: |
-          cd android
-          chmod +x gradlew
+        run: chmod +x android/gradlew
+
+      - name: Run Android lint
+        working-directory: android
+        run: ./gradlew lint --stacktrace
 
       - name: Build Debug APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace
+        run: cd android && ./gradlew assembleDebug --stacktrace
+        env:
+          CI: true
 
-      - name: Upload APK
+      - name: Build Release APK (if signing secrets available)
+        if: ${{ secrets.STORE_FILE && secrets.STORE_PASSWORD && secrets.KEY_ALIAS && secrets.KEY_PASSWORD }}
+        run: cd android && ./gradlew assembleRelease --stacktrace
+        env:
+          CI: true
+
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: EngTv-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Upload Release APK
+        if: ${{ secrets.STORE_FILE && secrets.STORE_PASSWORD && secrets.KEY_ALIAS && secrets.KEY_PASSWORD }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: EngTv-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
+
+      - name: Cache Gradle cleanup
+        if: always()
+        run: rm -rf ~/.gradle/caches/modules-2/modules-2.lock
+
+  # ── 4. Release (on tags only) ──────────────────────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-android]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download backend build
+        uses: actions/download-artifact@v4
+        with:
+          name: api-server-build
+          path: dist/
+
+      - name: Download release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: EngTv-release-apk
+          path: apk/
+
+      - name: Generate APK checksum
+        run: |
+          sha256sum apk/*.apk > apk/checksums.txt
+          cat apk/checksums.txt
+
+      - name: Generate release notes
+        run: |
+          echo "## What's Changed" > RELEASE_NOTES.md
+          git log $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --oneline --format="* %s" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Checksums" >> RELEASE_NOTES.md
+          cat apk/checksums.txt >> RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EngTv ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            apk/*.apk
+            dist/**/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') }}

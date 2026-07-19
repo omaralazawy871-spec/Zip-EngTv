@@ -149,6 +149,17 @@ export interface ChannelUpdate {
   sort_order?: number | null;
 }
 
+export interface BulkCategoryMoveInput {
+  /** @minItems 1 */
+  ids: number[];
+  /** @nullable */
+  category_id: number | null;
+}
+
+export interface BulkCategoryMoveResult {
+  updated_count: number;
+}
+
 export interface BulkIdsInput {
   /** @minItems 1 */
   ids: number[];
@@ -396,6 +407,30 @@ export interface ScheduledSource {
 export interface SchedulerStatus {
   enabled: boolean;
   scheduled_sources: ScheduledSource[];
+}
+
+export interface BackupData {
+  exported_at: string;
+  channels: Channel[];
+  categories: Category[];
+  sources: Source[];
+  settings: { key: string; value: string }[];
+}
+
+export interface ExportBackupResult {
+  exported_at: string;
+  channels_count: number;
+  categories_count: number;
+  sources_count: number;
+  settings_count: number;
+}
+
+export interface RestoreBackupResult {
+  restored_at: string;
+  channels_imported: number;
+  categories_imported: number;
+  sources_imported: number;
+  settings_imported: number;
 }
 
 export interface AdminStats {

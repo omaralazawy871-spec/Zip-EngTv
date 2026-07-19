@@ -24,3 +24,20 @@ val OnError         = Color(0xFFFFFFFF)
 
 val Outline         = Color(0xFF1E293B)
 val OutlineVariant  = Color(0xFF334155)
+
+// ── Light Palette ────────────────────────────────────────────────────────────
+val LightBackground      = Color(0xFFF8FAFC)
+val LightSurface         = Color(0xFFFFFFFF)
+val LightSurfaceVariant  = Color(0xFFF1F5F9)
+val LightSurfaceContainer= Color(0xFFE2E8F0)
+
+val LightOnBackground    = Color(0xFF0F172A)
+val LightOnSurface       = Color(0xFF1E293B)
+val LightOnSurfaceVariant= Color(0xFF64748B)
+val LightOnPrimary       = Color(0xFFFFFFFF)
+
+val LightErrorContainer  = Color(0xFFFEE2E2)
+val LightOnError         = Color(0xFFFFFFFF)
+
+val LightOutline         = Color(0xFFCBD5E1)
+val LightOutlineVariant  = Color(0xFFE2E8F0)

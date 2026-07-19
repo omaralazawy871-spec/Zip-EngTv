@@ -3,8 +3,10 @@ package com.engtv.data.database.entities
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /** Tracks which channel was last watched and at what playback position. */
+@Serializable
 @Entity(tableName = "watch_history")
 data class WatchHistoryEntity(
     @PrimaryKey @ColumnInfo(name = "channel_id") val channelId: Int,

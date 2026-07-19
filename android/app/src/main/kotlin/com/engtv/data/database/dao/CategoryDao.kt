@@ -22,6 +22,9 @@ interface CategoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(categories: List<CategoryEntity>)
 
+    @Query("SELECT * FROM categories ORDER BY sort_order ASC")
+    suspend fun getAll(): List<CategoryEntity>
+
     @Query("DELETE FROM categories")
     suspend fun deleteAll()
 }

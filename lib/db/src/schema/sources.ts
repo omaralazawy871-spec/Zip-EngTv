@@ -22,6 +22,10 @@ export const sourcesTable = pgTable("sources", {
   filter_language: text("filter_language").notNull().default("all"), // 'all' | 'arabic' | 'english'
   filter_countries: text("filter_countries"), // comma-separated ISO codes, null/empty = all
   filter_categories: text("filter_categories"), // comma-separated patterns, null/empty = all
+  // Sync tracking
+  sync_status: text("sync_status").notNull().default("idle"), // 'idle' | 'syncing' | 'failed'
+  retry_count: integer("retry_count").notNull().default(0),
+  error_message: text("error_message"),
   // Auto-sync scheduler
   sync_interval_hours: integer("sync_interval_hours").notNull().default(0), // 0 = manual only
   next_sync_at: timestamp("next_sync_at"),

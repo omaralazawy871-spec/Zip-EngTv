@@ -13,4 +13,6 @@ sealed class Screen(val route: String) {
     data object Player    : Screen("player/{channelId}") {
         fun route(channelId: Int) = "player/$channelId"
     }
+
+    data object Developer : Screen("developer")
 }

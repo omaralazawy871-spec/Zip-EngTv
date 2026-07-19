@@ -447,6 +447,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/BulkUpdateResult"
 
+  /admin/channels/bulk-category:
+    post:
+      operationId: bulkUpdateChannelCategory
+      tags: [channels, admin]
+      summary: Move multiple channels to a different category (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCategoryMoveInput"
+      responses:
+        "200":
+          description: Update result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkCategoryMoveResult"
+
   /admin/channels/health-check:
     post:
       operationId: runHealthCheck
@@ -1011,6 +1032,25 @@ components:
           type: integer
 
     BulkUpdateResult:
+      type: object
+      required: [updated_count]
+      properties:
+        updated_count:
+          type: integer
+
+    BulkCategoryMoveInput:
+      type: object
+      required: [ids, category_id]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+        category_id:
+          type: ["integer", "null"]
+
+    BulkCategoryMoveResult:
       type: object
       required: [updated_count]
       properties:

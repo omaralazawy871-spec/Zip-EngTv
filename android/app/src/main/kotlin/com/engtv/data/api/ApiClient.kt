@@ -41,6 +41,12 @@ class UrlRewriteInterceptor : Interceptor {
             .toHttpUrlOrNull()
             ?: return chain.proceed(original)
 
+        // Only rewrite URLs that belong to the configured API host
+        val originalHost = original.url.host
+        if (originalHost != configUrl.host) {
+            return chain.proceed(original)
+        }
+
         val newUrl = original.url
             .newBuilder()
             .scheme(configUrl.scheme)
@@ -71,6 +77,7 @@ object ApiClient {
     fun buildOkHttp(): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(UrlRewriteInterceptor())   // dynamic base URL
+            .addInterceptor(AuthInterceptor())         // JWT auth for admin APIs
             .addInterceptor(loggingInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

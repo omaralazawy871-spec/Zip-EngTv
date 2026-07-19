@@ -20,6 +20,8 @@ import {
   BulkDeleteChannelsResponse,
   BulkUpdateChannelStatusBody,
   BulkUpdateChannelStatusResponse,
+  BulkUpdateChannelCategoryBody,
+  BulkUpdateChannelCategoryResponse,
   RunHealthCheckBody,
   RunHealthCheckResponse,
   DeleteAllChannelsResponse,
@@ -210,6 +212,23 @@ router.post("/admin/channels/bulk-status", requireAdmin, async (req, res): Promi
   res.json(BulkUpdateChannelStatusResponse.parse({ updated_count: updated.length }));
 });
 
+// POST /admin/channels/bulk-category
+router.post("/admin/channels/bulk-category", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = BulkUpdateChannelCategoryBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const updated = await db
+    .update(channelsTable)
+    .set({ category_id: parsed.data.category_id })
+    .where(inArray(channelsTable.id, parsed.data.ids))
+    .returning({ id: channelsTable.id });
+
+  res.json(BulkUpdateChannelCategoryResponse.parse({ updated_count: updated.length }));
+});
+
 // POST /admin/channels/health-check
 router.post("/admin/channels/health-check", requireAdmin, async (req, res): Promise<void> => {
   const parsed = RunHealthCheckBody.safeParse(req.body);
@@ -240,9 +259,12 @@ router.patch("/admin/channels/:id", requireAdmin, async (req, res): Promise<void
     return;
   }
 
+  const updateData = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, v]) => v !== null),
+  );
   const [channel] = await db
     .update(channelsTable)
-    .set(parsed.data)
+    .set(updateData)
     .where(eq(channelsTable.id, params.data.id))
     .returning();
 

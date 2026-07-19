@@ -1,10 +1,15 @@
 import { inArray } from "drizzle-orm";
 import { db, channelsTable } from "@workspace/db";
-import { eq, and, isNull, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_CONCURRENCY = 10;
 const MAX_CONCURRENCY = 30;
+
+const CONCURRENCY = Math.min(
+  Number(process.env["HEALTH_CHECK_CONCURRENCY"]) || DEFAULT_CONCURRENCY,
+  MAX_CONCURRENCY
+);
 
 interface CheckResult {
   id: number;
@@ -17,24 +22,41 @@ async function checkStreamUrl(url: string): Promise<{ healthy: boolean; error: s
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   try {
-    // Always use GET — HEAD is unreliable on live-stream endpoints (many
-    // Xtream / HLS servers return 404 or 405 for HEAD even when the stream
-    // is healthy).  Do NOT send a Range header; live streams don't support
-    // range requests and servers often return 416 for them.
     const response = await fetch(url, {
       method: "GET",
       signal: controller.signal,
       headers: {
         "User-Agent": "EngTv/1.0 (health-check)",
       },
+      redirect: "manual",
     });
 
-    // Abort the body immediately — we only care about the status code.
     response.body?.cancel().catch(() => {});
     clearTimeout(timer);
 
-    if (response.status >= 200 && response.status < 400) {
+    if (response.status >= 200 && response.status < 300) {
       return { healthy: true, error: null };
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (location) {
+        // Follow redirect and check the destination
+        try {
+          const followRes = await fetch(location, {
+            method: "GET",
+            signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+            headers: { "User-Agent": "EngTv/1.0 (health-check)" },
+          });
+          followRes.body?.cancel().catch(() => {});
+          if (followRes.ok) {
+            return { healthy: true, error: null };
+          }
+          return { healthy: false, error: `Redirect to ${followRes.status}` };
+        } catch {
+          return { healthy: false, error: "Redirect target unreachable" };
+        }
+      }
     }
 
     return { healthy: false, error: `HTTP ${response.status}` };
@@ -50,7 +72,6 @@ async function checkStreamUrl(url: string): Promise<{ healthy: boolean; error: s
 
 async function runBatch(
   channels: { id: number; stream_url: string }[],
-  concurrency: number
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const queue = [...channels];
@@ -63,13 +84,13 @@ async function runBatch(
     }
   }
 
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () => worker());
+  const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, () => worker());
   await Promise.all(workers);
   return results;
 }
 
 export interface HealthCheckOptions {
-  ids?: number[]; // specific IDs; if empty, checks all active channels
+  ids?: number[];
   concurrency?: number;
 }
 
@@ -81,12 +102,11 @@ export interface HealthCheckSummary {
 }
 
 export async function runHealthCheck(options: HealthCheckOptions = {}): Promise<HealthCheckSummary> {
-  const concurrency = Math.min(
-    options.concurrency ?? DEFAULT_CONCURRENCY,
+  const effectiveConcurrency = Math.min(
+    options.concurrency ?? CONCURRENCY,
     MAX_CONCURRENCY
   );
 
-  // Fetch channels to check
   let channels: { id: number; stream_url: string }[];
 
   if (options.ids && options.ids.length > 0) {
@@ -95,7 +115,6 @@ export async function runHealthCheck(options: HealthCheckOptions = {}): Promise<
       .from(channelsTable)
       .where(inArray(channelsTable.id, options.ids));
   } else {
-    // Check all active channels
     channels = await db
       .select({ id: channelsTable.id, stream_url: channelsTable.stream_url })
       .from(channelsTable)
@@ -110,9 +129,8 @@ export async function runHealthCheck(options: HealthCheckOptions = {}): Promise<
     return { checked: 0, healthy: 0, broken: 0, skipped };
   }
 
-  const results = await runBatch(channels, concurrency);
+  const results = await runBatch(channels);
 
-  // Write results back to DB in batches
   const now = new Date();
   const healthyIds = results.filter((r) => r.healthy).map((r) => r.id);
   const brokenResults = results.filter((r) => !r.healthy);

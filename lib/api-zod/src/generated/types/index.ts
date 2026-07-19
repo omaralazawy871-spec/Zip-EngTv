@@ -8,9 +8,14 @@
 
 export * from './adminLoginInput';
 export * from './adminLoginResult';
+export * from './backupData';
+export * from './backupResult';
+export * from './restoreResult';
 export * from './adminStats';
 export * from './appSettings';
 export * from './appSettingsUpdate';
+export * from './bulkCategoryMoveInput';
+export * from './bulkCategoryMoveResult';
 export * from './bulkDeleteResult';
 export * from './bulkIdsInput';
 export * from './bulkStatusInput';

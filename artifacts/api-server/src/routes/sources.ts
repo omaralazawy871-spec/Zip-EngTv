@@ -25,6 +25,7 @@ import {
 import { requireAdmin } from "../middlewares/auth";
 import { syncSource as doSyncSource } from "../lib/sync-engine";
 import { serializeDates } from "../lib/serialize";
+import { encrypt } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -48,9 +49,15 @@ router.post("/admin/sources", requireAdmin, async (req, res): Promise<void> => {
     ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
     : null;
 
+  const values = {
+    ...parsed.data,
+    next_sync_at: nextSyncAt,
+    password: parsed.data.password ? encrypt(parsed.data.password) : undefined,
+  };
+
   const [source] = await db
     .insert(sourcesTable)
-    .values({ ...parsed.data, next_sync_at: nextSyncAt })
+    .values(values)
     .returning();
   res.status(201).json(CreateSourceResponse.parse(serializeDates(source)));
 });
@@ -91,19 +98,24 @@ router.patch("/admin/sources/:id", requireAdmin, async (req, res): Promise<void>
   }
 
   // If interval is changing, recalculate next_sync_at
-  let nextSyncAtUpdate: { next_sync_at: Date | null } = {};
+  let nextSyncAt: Date | null | undefined;
   if (parsed.data.sync_interval_hours !== undefined) {
     const intervalHours = parsed.data.sync_interval_hours;
-    nextSyncAtUpdate = {
-      next_sync_at: intervalHours > 0
-        ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
-        : null,
-    };
+    nextSyncAt = intervalHours > 0
+      ? new Date(Date.now() + intervalHours * 60 * 60 * 1000)
+      : null;
   }
+
+  const setData = {
+    ...Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== null)),
+    updated_at: new Date(),
+    ...(nextSyncAt !== undefined ? { next_sync_at: nextSyncAt } : {}),
+    ...(parsed.data.password ? { password: encrypt(parsed.data.password) } : {}),
+  };
 
   const [source] = await db
     .update(sourcesTable)
-    .set({ ...parsed.data, ...nextSyncAtUpdate, updated_at: new Date() })
+    .set(setData)
     .where(eq(sourcesTable.id, params.data.id))
     .returning();
 
@@ -113,6 +125,60 @@ router.patch("/admin/sources/:id", requireAdmin, async (req, res): Promise<void>
   }
 
   res.json(UpdateSourceResponse.parse(serializeDates(source)));
+});
+
+// POST /admin/sources/test — test connection before saving
+router.post("/admin/sources/test", requireAdmin, async (req, res): Promise<void> => {
+  const { type, url, server_url, username, password } = req.body as Record<string, string | undefined>;
+
+  if (type !== "m3u" && type !== "xtream") {
+    res.status(400).json({ error: "نوع مصدر غير صالح" });
+    return;
+  }
+
+  try {
+    if (type === "m3u") {
+      if (!url) {
+        res.json({ success: false, message: "M3U URL مطلوب" });
+        return;
+      }
+      const response = await fetch(url, {
+        method: "HEAD",
+        headers: { "User-Agent": "EngTv/1.0" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (response.ok) {
+        res.json({ success: true, message: "تم الاتصال بنجاح" });
+      } else {
+        res.json({ success: false, message: `HTTP ${response.status}: ${response.statusText}` });
+      }
+    } else {
+      if (!server_url || !username || !password) {
+        res.json({ success: false, message: "بيانات Xtream Codes غير مكتملة" });
+        return;
+      }
+      const base = server_url.replace(/\/$/, "");
+      const [catRes] = await Promise.all([
+        fetch(
+          `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`,
+          { signal: AbortSignal.timeout(15000) }
+        ),
+      ]);
+      if (catRes.ok) {
+        const data = await catRes.json();
+        if (Array.isArray(data)) {
+          res.json({ success: true, message: `تم الاتصال — ${data.length} فئة متاحة` });
+        } else {
+          res.json({ success: false, message: "استجابة غير متوقعة من الخادم" });
+        }
+      } else {
+        res.json({ success: false, message: `HTTP ${catRes.status}: ${catRes.statusText}` });
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "خطأ في الاتصال";
+    res.json({ success: false, message: msg });
+  }
 });
 
 // DELETE /admin/sources/:id

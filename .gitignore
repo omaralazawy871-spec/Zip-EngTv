@@ -47,3 +47,21 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.aider*
+
+# Release keystores — do not commit
+*.keystore
+*.jks
+keystore.properties
+
+# Local Android SDK / signing / API config
+local.properties
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+*.log.*

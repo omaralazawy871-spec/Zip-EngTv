@@ -25,9 +25,14 @@ import type {
   AdminStats,
   AppSettings,
   AppSettingsUpdate,
+  BackupData,
+  BulkCategoryMoveInput,
+  BulkCategoryMoveResult,
   BulkDeleteResult,
   BulkIdsInput,
   BulkStatusInput,
+  ExportBackupResult,
+  RestoreBackupResult,
   BulkUpdateResult,
   Category,
   CategoryInput,
@@ -53,8 +58,8 @@ import type {
   SyncResult
 } from './api.schemas';
 
-import { customFetch } from '../custom-fetch';
-import type { ErrorType , BodyType } from '../custom-fetch';
+import { customFetch } from '../custom-fetch.ts';
+import type { ErrorType , BodyType } from '../custom-fetch.ts';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -1492,6 +1497,56 @@ export const useBulkUpdateChannelStatus = <TError = ErrorType<unknown>,
       return useMutation(getBulkUpdateChannelStatusMutationOptions(options));
     }
 
+export const getBulkUpdateChannelCategoryUrl = () => {
+  return `/api/admin/channels/bulk-category`
+}
+
+/**
+ * @summary Move multiple channels to a different category (admin)
+ */
+export const bulkUpdateChannelCategory = async (bulkCategoryMoveInput: BulkCategoryMoveInput, options?: RequestInit): Promise<BulkCategoryMoveResult> => {
+  return customFetch<BulkCategoryMoveResult>(getBulkUpdateChannelCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkCategoryMoveInput)
+  }
+);}
+
+export const getBulkUpdateChannelCategoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelCategory>>, TError,{data: BodyType<BulkCategoryMoveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelCategory>>, TError,{data: BodyType<BulkCategoryMoveInput>}, TContext> => {
+const mutationKey = ['bulkUpdateChannelCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateChannelCategory>>, {data: BodyType<BulkCategoryMoveInput>}> = (props) => {
+          const {data} = props ?? {};
+          return  bulkUpdateChannelCategory(data,requestOptions)
+        }
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateChannelCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateChannelCategory>>>
+    export type BulkUpdateChannelCategoryMutationBody = BodyType<BulkCategoryMoveInput>
+    export type BulkUpdateChannelCategoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Move multiple channels to a different category (admin)
+ */
+export const useBulkUpdateChannelCategory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateChannelCategory>>, TError,{data: BodyType<BulkCategoryMoveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateChannelCategory>>,
+        TError,
+        {data: BodyType<BulkCategoryMoveInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpdateChannelCategoryMutationOptions(options));
+    }
+
 export const getRunHealthCheckUrl = () => {
 
 
@@ -2588,6 +2643,100 @@ export function useGetAdminStats<TData = Awaited<ReturnType<typeof getAdminStats
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getExportBackupUrl = () => {
+  return `/api/admin/backup`
+}
+
+/**
+ * @summary Export all data as JSON backup (admin)
+ */
+export const exportBackup = async ( options?: RequestInit): Promise<BackupData> => {
+  return customFetch<BackupData>(getExportBackupUrl(),
+  {
+    ...options,
+    method: 'GET'
+  }
+);}
+
+export const getExportBackupQueryKey = () => {
+    return [
+    `/api/admin/backup`
+    ] as const;
+    }
+
+export const getExportBackupQueryOptions = <TData = Awaited<ReturnType<typeof exportBackup>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =  queryOptions?.queryKey ?? getExportBackupQueryKey();
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportBackup>>> = ({ signal }) => exportBackup({ signal, ...requestOptions });
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportBackup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetExportBackupQueryResult = NonNullable<Awaited<ReturnType<typeof exportBackup>>>
+export type GetExportBackupQueryError = ErrorType<unknown>
+
+/**
+ * @summary Export all data as JSON backup (admin)
+ */
+export function useExportBackup<TData = Awaited<ReturnType<typeof exportBackup>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportBackupQueryOptions(options)
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getRestoreBackupUrl = () => {
+  return `/api/admin/restore`
+}
+
+/**
+ * @summary Restore data from JSON backup (admin)
+ */
+export const restoreBackup = async (backupData: BackupData, options?: RequestInit): Promise<RestoreBackupResult> => {
+  return customFetch<RestoreBackupResult>(getRestoreBackupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(backupData)
+  }
+);}
+
+export const getRestoreBackupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<BackupData>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<BackupData>}, TContext> => {
+const mutationKey = ['restoreBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreBackup>>, {data: BodyType<BackupData>}> = (props) => {
+          const {data} = props ?? {};
+          return  restoreBackup(data,requestOptions)
+        }
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreBackupMutationResult = NonNullable<Awaited<ReturnType<typeof restoreBackup>>>
+    export type RestoreBackupMutationBody = BodyType<BackupData>
+    export type RestoreBackupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Restore data from JSON backup (admin)
+ */
+export const useRestoreBackup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<BackupData>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreBackup>>,
+        TError,
+        {data: BodyType<BackupData>},
+        TContext
+      > => {
+      return useMutation(getRestoreBackupMutationOptions(options));
+    }
+
 
 
 

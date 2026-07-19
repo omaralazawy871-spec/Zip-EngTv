@@ -386,6 +386,22 @@ export const BulkUpdateChannelStatusResponse = zod.object({
 
 
 /**
+ * @summary Move multiple channels to a different category (admin)
+ */
+
+
+
+export const BulkUpdateChannelCategoryBody = zod.object({
+  "ids": zod.array(zod.number()).min(1),
+  "category_id": zod.number().nullable()
+})
+
+export const BulkUpdateChannelCategoryResponse = zod.object({
+  "updated_count": zod.number()
+})
+
+
+/**
  * @summary Check stream availability for channels (admin)
  */
 export const RunHealthCheckBody = zod.object({
@@ -717,6 +733,73 @@ export const GetAdminStatsResponse = zod.object({
   "total_sources": zod.number(),
   "active_sources": zod.number(),
   "last_sync_at": zod.string().nullish()
+})
+
+
+/**
+ * @summary Export all data as JSON backup (admin)
+ */
+
+export const GetBackupResponse = zod.object({
+  "exported_at": zod.string(),
+  "channels": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "stream_url": zod.string(),
+  "logo_url": zod.string().nullable(),
+  "category_id": zod.number().nullable(),
+  "source_id": zod.number().nullable(),
+  "external_id": zod.string().nullable(),
+  "is_active": zod.boolean(),
+  "sort_order": zod.number(),
+  "language": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "created_at": zod.string(),
+  "last_checked_at": zod.string().nullable(),
+  "is_healthy": zod.boolean().nullable(),
+  "health_error": zod.string().nullable()
+})),
+  "categories": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "icon": zod.string().nullable(),
+  "sort_order": zod.number(),
+  "is_visible": zod.boolean(),
+  "created_at": zod.string()
+})),
+  "sources": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string(),
+  "status": zod.string(),
+  "sync_interval_hours": zod.number(),
+  "last_sync_at": zod.string().nullable(),
+  "error_message": zod.string().nullable(),
+  "created_at": zod.string()
+})),
+  "settings": zod.array(zod.object({
+  "key": zod.string(),
+  "value": zod.string()
+}))
+})
+
+export const RestoreBackupBody = GetBackupResponse
+
+export const RestoreBackupResponse = zod.object({
+  "restored_at": zod.string(),
+  "channels_imported": zod.number(),
+  "categories_imported": zod.number(),
+  "sources_imported": zod.number(),
+  "settings_imported": zod.number()
+})
+
+export const ExportBackupResponse = zod.object({
+  "exported_at": zod.string(),
+  "channels_count": zod.number(),
+  "categories_count": zod.number(),
+  "sources_count": zod.number(),
+  "settings_count": zod.number()
 })
 
 

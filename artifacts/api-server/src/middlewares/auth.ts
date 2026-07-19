@@ -1,27 +1,33 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-function resolveSecret(): string {
-  const envSecret = process.env["ADMIN_JWT_SECRET"];
-  if (envSecret) return envSecret;
-  if (process.env["NODE_ENV"] === "production") {
-    throw new Error(
-      "ADMIN_JWT_SECRET environment variable is required but was not provided in production."
-    );
-  }
-  return "engtv-dev-secret";
-}
-
-const secret = resolveSecret();
+const resolvedSecret: string = process.env["ADMIN_JWT_SECRET"] ?? (() => {
+  throw new Error(
+    "ADMIN_JWT_SECRET environment variable is required but was not provided."
+  );
+})();
 
 export function generateToken(): string {
-  return jwt.sign({ admin: true }, secret, { expiresIn: "7d" });
+  return jwt.sign({ admin: true }, resolvedSecret, { expiresIn: "7d" });
+}
+
+export function generateRefreshToken(): string {
+  return jwt.sign({ admin: true, refresh: true }, resolvedSecret, { expiresIn: "30d" });
 }
 
 export function verifyToken(token: string): boolean {
   try {
-    jwt.verify(token, secret);
+    jwt.verify(token, resolvedSecret);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+export function verifyRefreshToken(token: string): boolean {
+  try {
+    const decoded = jwt.verify(token, resolvedSecret) as { refresh?: boolean };
+    return decoded.refresh === true;
   } catch {
     return false;
   }

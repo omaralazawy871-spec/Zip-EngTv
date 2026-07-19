@@ -28,7 +28,20 @@
 # Media3
 -keep class androidx.media3.** { *; }
 
+# Media3 DRM
+-keep class androidx.media3.exoplayer.drm.** { *; }
+-keep class com.google.android.exoplayer2.** { *; }
+
 # Room
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
 -dontwarn androidx.room.paging.**
+
+# Paging 3
+-keep class androidx.paging.** { *; }
+
+# Kotlin Coroutines Flow
+-dontwarn kotlinx.coroutines.flow.**
+
+# Hilt
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }

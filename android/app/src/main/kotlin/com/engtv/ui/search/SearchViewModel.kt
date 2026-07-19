@@ -18,15 +18,36 @@ class SearchViewModel @Inject constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val results: StateFlow<List<Channel>> = _query
         .debounce(300)
         .flatMapLatest { q ->
-            if (q.isBlank()) flowOf(emptyList())
-            else channelRepository.search(q).map { it }
+            if (q.isBlank()) {
+                _isSearching.value = false
+                flowOf(emptyList())
+            } else {
+                channelRepository.search(q)
+                    .onStart { _isSearching.value = true }
+                    .onCompletion { _isSearching.value = false }
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun onQueryChange(q: String) { _query.value = q }
-    fun clearQuery() { _query.value = "" }
+    fun onQueryChange(q: String) {
+        _query.value = q
+        if (q.isNotBlank() && (_searchHistory.value.isEmpty() || _searchHistory.value.first() != q)) {
+            val updated = listOf(q) + _searchHistory.value.take(9)
+            _searchHistory.value = updated
+        }
+    }
+
+    fun clearQuery() {
+        _query.value = ""
+    }
 }

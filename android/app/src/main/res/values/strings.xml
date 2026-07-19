@@ -21,4 +21,47 @@
     <string name="cancel">إلغاء</string>
     <string name="error_network">خطأ في الاتصال بالشبكة</string>
     <string name="error_playback">خطأ في التشغيل</string>
+
+    <!-- Backup -->
+    <string name="backup">النسخ الاحتياطي</string>
+    <string name="export_backup">تصدير نسخة احتياطية</string>
+    <string name="import_backup">استيراد نسخة احتياطية</string>
+    <string name="backup_success_export">تم تصدير النسخة الاحتياطية بنجاح</string>
+    <string name="backup_error_export">خطأ في التصدير</string>
+    <string name="backup_success_import">تم استيراد النسخة الاحتياطية بنجاح</string>
+    <string name="backup_error_import">خطأ في الاستيراد</string>
+
+    <!-- Sync -->
+    <string name="sync_now">مزامنة الآن</string>
+    <string name="sync_completed">تمت المزامنة</string>
+    <string name="sync_failed">فشلت المزامنة</string>
+    <string name="last_sync">آخر مزامنة</string>
+
+    <!-- Notification channels -->
+    <string name="channel_sync_name">مزامنة IPTV</string>
+    <string name="channel_sync_desc">إشعارات حالة المزامنة مع الخادم</string>
+    <string name="channel_source_name">حالة المصادر</string>
+    <string name="channel_source_desc">إشعارات حالة توفر مصادر البث</string>
+    <string name="channel_channels_name">القنوات</string>
+    <string name="channel_channels_desc">إشعارات القنوات الجديدة المضافة</string>
+
+    <!-- Developer Mode -->
+    <string name="developer_mode">وضع المطور</string>
+    <string name="developer_activated">وضع المطور مفعل</string>
+    <string name="developer_screen_title">وضع المطور</string>
+    <string name="developer_secure_note">هذه الشاشة خاصة بالمطورين فقط</string>
+    <string name="developer_source_management">إدارة المصادر</string>
+    <string name="developer_add_source">إضافة مصدر جديد</string>
+    <string name="developer_edit_source">تعديل المصدر</string>
+    <string name="developer_delete_source">حذف المصدر</string>
+    <string name="developer_sync_status">حالة المزامنة</string>
+    <string name="developer_sync_all">مزامنة الكل</string>
+    <string name="developer_sync_history">سجل المزامنة</string>
+    <string name="developer_force_sync">مزامنة</string>
+    <string name="developer_source_name">اسم المصدر</string>
+    <string name="developer_source_type">النوع</string>
+    <string name="developer_source_url">الرابط</string>
+    <string name="developer_source_username">اسم المستخدم (اختياري)</string>
+    <string name="developer_source_password">كلمة المرور (اختياري)</string>
+    <string name="developer_confirm_delete">هل أنت متأكد من حذف المصدر؟</string>
 </resources>

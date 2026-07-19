@@ -11,12 +11,14 @@ import {
   useBulkDeleteChannels,
   useBulkUpdateChannelStatus,
   useRunHealthCheck,
+  useBulkUpdateChannelCategory,
   getListAdminChannelsQueryKey,
   getGetAdminStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,6 +128,9 @@ export default function AdminChannels() {
   // Health check progress
   const [healthChecking, setHealthChecking] = useState(false);
 
+  // Bulk category move
+  const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
+
   const debouncedSearch = useDebounce(search, 300);
 
   const queryParams = {
@@ -158,6 +163,7 @@ export default function AdminChannels() {
   });
   const bulkDeleteChannels = useBulkDeleteChannels();
   const bulkUpdateStatus = useBulkUpdateChannelStatus();
+  const bulkUpdateCategory = useBulkUpdateChannelCategory();
   const runHealthCheck = useRunHealthCheck();
 
   const invalidate = () => {
@@ -289,6 +295,23 @@ export default function AdminChannels() {
     }
   };
 
+  const handleBulkCategoryChange = async (categoryId: number | null) => {
+    if (selectedIds.size === 0) return;
+    try {
+      const result = await bulkUpdateCategory.mutateAsync({
+        data: { ids: [...selectedIds], category_id: categoryId },
+      });
+      toast({
+        title: "تم التحديث",
+        description: `تم نقل ${result.updated_count} قناة`,
+      });
+      clearSelection();
+      invalidate();
+    } catch {
+      toast({ title: "خطأ", description: "فشل النقل الجماعي", variant: "destructive" });
+    }
+  };
+
   const handleDeleteAll = async () => {
     if (!window.confirm("هل أنت متأكد؟ سيتم حذف جميع القنوات نهائياً!")) return;
     if (!window.confirm("تأكيد أخير: حذف جميع القنوات؟")) return;
@@ -386,6 +409,10 @@ export default function AdminChannels() {
                 >
                   <HeartPulse className="w-4 h-4 ml-2 text-blue-400" />
                   فحص المحددة
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkCategoryDialogOpen(true)}>
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                  تغيير التصنيف
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -486,9 +513,7 @@ export default function AdminChannels() {
         {/* Table */}
         <div className="bg-card border border-card-border rounded-2xl shadow-sm overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
+            <TableSkeleton rows={8} columns={9} />
           ) : filteredChannels.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
               <p className="text-lg">لا توجد قنوات</p>
@@ -656,6 +681,38 @@ export default function AdminChannels() {
               {isMutating && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
               {editingChannel ? "حفظ التغييرات" : "إضافة"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk category move dialog */}
+      <Dialog open={bulkCategoryDialogOpen} onOpenChange={setBulkCategoryDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>نقل القنوات المحددة إلى تصنيف</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Select
+              onValueChange={(v) => {
+                handleBulkCategoryChange(v ? Number(v) : null);
+                setBulkCategoryDialogOpen(false);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="اختر تصنيفاً..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">بدون تصنيف</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    {cat.icon} {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkCategoryDialogOpen(false)}>إلغاء</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
