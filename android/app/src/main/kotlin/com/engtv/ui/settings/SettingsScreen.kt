@@ -1,4 +1,3 @@
-```kotlin
 package com.engtv.ui.settings
 
 import android.net.Uri
@@ -96,6 +95,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
 
+
             Text(
                 text = "الإعدادات",
                 style = MaterialTheme.typography.titleLarge,
@@ -190,6 +190,7 @@ fun SettingsScreen(
                                 )
                             }
                         }
+
 
                         Button(
                             onClick = {
@@ -317,4 +318,3 @@ private fun InfoRow(
         )
     }
 }
-```
