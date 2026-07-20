@@ -100,9 +100,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
-        override fun onTracksChanged(tracks: Player.Tracks) {
-            refreshTracks()
-        }
+       
 
         override fun onPlayerError(error: PlaybackException) {
             val currentRetryCount = _uiState.value.retryCount
